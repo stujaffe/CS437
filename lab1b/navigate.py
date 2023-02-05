@@ -228,8 +228,10 @@ class PiCar(object):
         # save the current location
         prev_loc = self.current_loc
         # update the current location in the x,y plane
-        self.current_loc.x = prev_loc.x + distance*math.cos(math.radians(Direction[self.direction]))
-        self.current_loc.y = prev_loc.y + distance*math.sin(math.radians(Direction[self.direction]))
+        # swap the cosine and sine function again since the car's perspective is along
+        # the y-axis.
+        self.current_loc.x = prev_loc.x + distance*math.sin(math.radians(Direction[self.direction]))
+        self.current_loc.y = prev_loc.y + distance*math.cos(math.radians(Direction[self.direction]))
 
         # keep track of the distance traveled
         self.distance_traveled += distance
@@ -244,8 +246,8 @@ class PiCar(object):
         # save the current location
         prev_loc = self.current_loc
         # update the current location in the x,y plane
-        self.current_loc.x = prev_loc.x + distance*math.cos(math.radians(Direction[self.direction]))
-        self.current_loc.y = prev_loc.y + distance*math.sin(math.radians(Direction[self.direction]))
+        self.current_loc.x = prev_loc.x + distance*math.sin(math.radians(Direction[self.direction]))
+        self.current_loc.y = prev_loc.y + distance*math.cos(math.radians(Direction[self.direction]))
 
         # keep track of the distance traveled
         self.distance_traveled += distance
