@@ -241,7 +241,7 @@ class PiCar(object):
         # swap the cosine and sine function again since the car's perspective is along
         # the y-axis. also multiply by -1 since going along the positive a-axis is "east" and that is -90 degree direction
         self.current_loc.x = prev_loc.x + math.floor(distance*math.sin(math.radians(Direction[self.direction].value)))*-1
-        self.current_loc.y = prev_loc.y + math.floor(distance*math.cos(math.radians(Direction[self.direction].value)))*-1
+        self.current_loc.y = prev_loc.y + math.floor(distance*math.cos(math.radians(Direction[self.direction].value)))
         self.logger.info(f"After moving forward, new location: {self.current_loc}, previous location: {prev_loc}")
 
         # keep track of the distance traveled
