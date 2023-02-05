@@ -1,4 +1,8 @@
-# imports
+
+"""
+Picar navigation and mapping of surrounding area.
+"""
+
 import picar_4wd as fc
 import numpy as np
 import logging
@@ -89,6 +93,8 @@ class PiCar(object):
             turn_command = "left"
         elif angle_turn < 0: 
             turn_command = "right"
+        else:
+            turn_command = "no_turn"
         
         turn_data = {"turn_direction":turn_command, "seconds":turn_sec, "angle":angle_turn}
         
@@ -98,11 +104,15 @@ class PiCar(object):
 
         # angle between coordinates in 45 degree increments
         angle_btwn = self.calc_angle_btwn(coord1=coord1, coord2=coord2)
+        # now adjust for the direction the car is heading. for example, the points (1,0) and (2,0) will have
+        # an angle_btwn value of -90 because that assumes that is facing north (degree=0) but if it is
+        # facing east (degree=-90), then there is no angle between them.
+        angle_btwn_adj = angle_btwn - Direction[self.direction].value
 
         # now calculate the distance between the coordiantes using the law of cosines to generalize
         a = (coord1.x**2 + coord1.y**2)**0.5
         b = (coord2.x**2 + coord2.y**2)**0.5
-        c = math.radians(angle_btwn)
+        c = math.radians(angle_btwn_adj)
         distance = (a**2 + b**2 - 2*a*b*math.cos(c))**0.5
 
         # calculate the seconds to move
@@ -226,39 +236,25 @@ class PiCar(object):
         fc.stop()
 
         # save the current location
-        prev_loc = self.current_loc
+        prev_loc = Coordinate(self.current_loc.x, self.current_loc.y)
         # update the current location in the x,y plane
         # swap the cosine and sine function again since the car's perspective is along
-        # the y-axis.
-        self.current_loc.x = prev_loc.x + distance*math.sin(math.radians(Direction[self.direction]))
-        self.current_loc.y = prev_loc.y + distance*math.cos(math.radians(Direction[self.direction]))
-
-        # keep track of the distance traveled
-        self.distance_traveled += distance
-
-    def move_backward(self, distance, seconds):
-        self.logger.info(f"Moving BACKWARD at {self.power} power for {seconds} seconds for a distance of {distance}cm")
-        # move the car backwards for a number of seconds
-        fc.backward(self.power)
-        time.sleep(seconds)
-        fc.stop()
-
-        # save the current location
-        prev_loc = self.current_loc
-        # update the current location in the x,y plane
-        self.current_loc.x = prev_loc.x + distance*math.sin(math.radians(Direction[self.direction]))
-        self.current_loc.y = prev_loc.y + distance*math.cos(math.radians(Direction[self.direction]))
+        # the y-axis. also multiply by -1 since going along the positive a-axis is "east" and that is -90 degree direction
+        self.current_loc.x = prev_loc.x + math.floor(distance*math.sin(math.radians(Direction[self.direction].value)))*-1
+        self.current_loc.y = prev_loc.y + math.floor(distance*math.cos(math.radians(Direction[self.direction].value)))*-1
+        self.logger.info(f"After moving forward, new location: {self.current_loc}, previous location: {prev_loc}")
 
         # keep track of the distance traveled
         self.distance_traveled += distance
 
     def turn_left(self, seconds: float, turn_angle: float):
-        self.logger.info(f"Turning LEFT for {seconds} seconds at an agle of {turn_angle}")
+        self.logger.info(f"Turning LEFT for {seconds} seconds at an angle of {turn_angle}")
         fc.turn_left(30)
         time.sleep(seconds)
-        fc.stop()
         # update the car's absolute direction
-        new_direction_angle = Direction[self.direction] + turn_angle
+        prev_direction_angle = Direction[self.direction].value
+        new_direction_angle = prev_direction_angle + turn_angle
+        self.logger.info(f"After turning LEFT, new direction angle: {new_direction_angle}, previous direction angle: {prev_direction_angle}")
         try:
             self.direction = Direction(new_direction_angle).name
         except:
@@ -267,29 +263,34 @@ class PiCar(object):
                                 and turn angle: {turn_angle}. Angle changes should be in increments of 45 degrees.")
             
     def turn_right(self, seconds: float, turn_angle: float):
-        self.logger.info(f"Turning RIGHT for {seconds} seconds at an agle of {turn_angle}")
+        self.logger.info(f"Turning RIGHT for {seconds} seconds at an angle of {turn_angle}")
         fc.turn_right(30)
         time.sleep(seconds)
-        fc.stop()
         # update the car's absolute direction
-        new_direction_angle = Direction[self.direction] + turn_angle
+        prev_direction_angle = Direction[self.direction].value
+        new_direction_angle = prev_direction_angle + turn_angle
+        self.logger.info(f"After turning RIGHT, new direction angle: {new_direction_angle}, previous direction angle: {prev_direction_angle}")
         try:
             self.direction = Direction(new_direction_angle).name
         except:
             fc.stop()
             raise Exception(f"New direction angle of {new_direction_angle} is not valid. Current direction angle: {Direction[self.direction]} \
                                 and turn angle: {turn_angle}. Angle changes should be in increments of 45 degrees.")
+    
+    def stop_car(self):
+        fc.stop()
+
 
 if __name__ == "__main__":
     # various testing, debugging
-    point1 = Coordinate(5,2)
-    point2 = Coordinate(10,6)
+    point1 = Coordinate(0,0)
+    point2 = Coordinate(0,9)
     
     angle1 = 45
     distance1 = 10
     
     start = Coordinate(9,9)
-    end = Coordinate(0,0)
+    end = Coordinate(9,0)
     picar = PiCar(start_loc=start, goal_loc=end)
     print(f"Current direction : {picar.direction}")
     
@@ -302,6 +303,7 @@ if __name__ == "__main__":
     points_inbtwn = picar.get_points_inbtwn(point1, point2)
     [print(x) for x in points_inbtwn]
     
+    """
     # empty map
     global_map = Maze(20,20)
     print(global_map)
@@ -314,4 +316,5 @@ if __name__ == "__main__":
     
     scan_sweep = picar.scan_sweep()
     print(scan_sweep)
+    """
     

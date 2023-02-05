@@ -30,9 +30,19 @@ class Maze(object):
         self.x_length = x_length
         self.y_length = y_length
         self.maze = np.zeros(shape=(x_length, y_length))
+        self.shape = (x_length, y_length)
     
     def __str__(self):
         return str(self.maze)
+    
+    def __getitem__(self, idx):
+        if type(idx) == int:
+            return self.maze[idx]
+        else:
+            return self.maze[idx[0],idx[1]]
+    
+    def __len__(self):
+        return self.maze.shape[0]
     
     def mark_object(self, coord: Coordinate) -> None:
         if coord.x > self.x_length or coord.y > self.y_length:
