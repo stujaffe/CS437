@@ -1,4 +1,5 @@
 from enum import Enum
+import numpy as np
 
 class Coordinate(object):
     def __init__(self, x: int, y: int) -> None:
@@ -19,6 +20,22 @@ class Coordinate(object):
     
     def __str__(self):
         return f"(x:{self.x},y:{self.y})"
+
+# class to hold the obstacle course
+class Maze(object):
+    def __init__(self, x_length: int, y_length: int) -> None:
+        self.x_length = x_length
+        self.y_length = y_length
+        self.maze = np.zeros(shape=(x_length, y_length))
+    
+    def __str__(self):
+        return str(self.maze)
+    
+    def mark_object(self, coord: Coordinate) -> None:
+        if coord.x > self.x_length or coord.y > self.y_length:
+            pass
+        else:
+            self.maze[coord.x, coord.y] = 1
 
 # hold the directions and their corresponding angles from the perspective of going north
 # using polar coordinates with 0 degrees as north and negative angles since the ultrasonic sensor

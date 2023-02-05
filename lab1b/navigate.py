@@ -4,21 +4,11 @@ import numpy as np
 import logging
 import math
 import time
-from typing import List, Tuple
-from helper_classes import Coordinate, Direction
+from typing import List, Tuple, Union
+from helper_classes import Coordinate, Direction, Maze
+    
 
-
-# global vars
-DEBUG = True
-X_LOCAL = 100
-Y_LOCAL = 100
-X_GLOBAL = 1000
-Y_GLOBAL = 1000
-LOCAL_MAP = np.zeros(shape=(X_LOCAL, Y_LOCAL))
-GLOBAL_MAP = np.zeros(shape=(X_GLOBAL, Y_GLOBAL))
-#################################
-
-class PiCar:
+class PiCar(object):
     def __init__(
         self,
         start_loc: Coordinate,
@@ -26,6 +16,7 @@ class PiCar:
         power: int = 10,
         direction: str = Direction.north.name,
         angle_range: int = 140,
+        threshold: int = 15, # object clearance in cm
     ) -> None:
         self.start_loc = start_loc
         self.goal_loc = goal_loc
@@ -35,10 +26,11 @@ class PiCar:
         self.power = power
         self.angle_range = angle_range
         self.step = math.floor(angle_range / 10)
-        self.max_angle = angle_range / 2
-        self.min_angle = angle_range / 2 * -1
+        self.max_angle = int(angle_range / 2)
+        self.min_angle = int(angle_range / 2 * -1)
         self.current_angle = 0
         self.speed_at_10 = 26.70
+        self.threshold = threshold
         self.logger = logging.getLogger()
         logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                 datefmt='%Y-%m-%d:%H:%M:%S',
@@ -121,7 +113,6 @@ class PiCar:
         return movement_data
 
 
-
     # calculate the speed in cm/s for a given power
     def get_speed(self):
         if self.power == 10:
@@ -133,28 +124,56 @@ class PiCar:
 
         return self.speed
 
-    # scan the area in front of the car
-    def scan_sweep(self) -> List[Tuple[float, int]]:
+    # scan the area in front of the car. set for_map=True when you want
+    # to return the results, otherwise when for_map=False, this will scan
+    # for objects so the car can stop and not hit them.
+    def scan_sweep(self, for_map: bool=False) -> Union[List[Tuple[float, int]], None]:
         scan_result = []
-        for angle in range(self.min_angle, self.max_angle, self.step):
+        # ensure the sensor gets readings going in both directions depending upon
+        # the current angle of the sensor.
+        if self.current_angle > 0:
+            start_angle = self.max_angle
+            end_angle = self.min_angle - self.step
+            step = abs(self.step)*-1
+        else:
+            start_angle = self.min_angle
+            end_angle = self.max_angle + self.step
+            step = abs(self.step)
+        for angle in range(start_angle, end_angle, step):
             fc.servo.set_angle(angle)
             self.current_angle = angle
             time.sleep(0.04)
             distance_to_obj = fc.us.get_distance()
+            if for_map == False and distance_to_obj <= self.threshold:
+                self.avoid_object()
+                return None
             scan_result.append((distance_to_obj, angle))
         # returns a list of tuples (distance cm, angle degrees)
         return scan_result
 
     # convert angle and distance into caretisan coordinates
-    @staticmethod
-    def get_cartesian(angle: float, distance: float) -> Coordinate:
+    def get_cartesian(self, angle: float, distance: float) -> Coordinate:
+        # we need to adjust the angle based on the direction of the car
+        # if the car is going north (0 degrees) then the angle from the ultrasonic
+        # sensor does not need to be adjusted. However, if the car is, for example,
+        # traveling southwest at 135 degrees, we need to get the correct cartesian
+        # coordinates on an absolute basis on the map. That is, relative to north being
+        # 0 degrees along the y-axis. Otherwise, incorrect cells will be calculated.
+        angle_adj = Direction[self.direction].value + angle
+        # x is usually calculated using cosine and y from sine but that is from the perspective
+        # of the x-axis and in this case the car has 0 degrees on the y-axis
         # x can be negative (since the car is in the middle of the grid along the x plane)
-        x = math.floor(math.sin(math.radians(angle)) * distance)
+        # we want to multiply x by -1
+        x = math.sin(math.radians(angle_adj)) * distance*-1
         # y will always be >= 0 (since the car cannot detect objects behind with the servo and ultrasonic sensor)
-        y = math.floor(math.cos(math.radians(angle)) * distance)
-        coord = Coordinate(x, y)
+        y = math.cos(math.radians(angle_adj)) * distance
+        # relative coordinate
+        coord_rel = Coordinate(x, y)
+        # absolute coorindate, taking into account where the car is
+        coord_abs = Coordinate(self.current_loc.x + x, self.current_loc.y + y)
+        self.logger.info(f"Calculated abs point {coord_abs} from current loc {self.current_loc}, rel point {coord_rel}, {angle} angle, {distance} distance")
 
-        return coord
+        return coord_abs
 
     # calculate slope between two x,y points
     @staticmethod
@@ -177,7 +196,6 @@ class PiCar:
         # we know the equation of the line between two points is y=mx+b, where b is the y intercept
         # calculate the y intercept using either x,y pair
         b = coord1.y - slope * coord1.x
-        print(b)
         if b == -999:
             return points_inbtwn
         # now loop from the lower to higher x coordinate and get the x,y points in between
@@ -195,6 +213,10 @@ class PiCar:
                 points_inbtwn.append(point)
 
         return points_inbtwn
+    
+    def avoid_object(self):
+        self.logger.info(f"Detected potential object with threshold of {self.threshold}cm. Stopping.")
+        fc.stop()
 
     def move_forward(self, distance, seconds):
         self.logger.info(f"Moving FORWARD at {self.power} power for {seconds} seconds for a distance of {distance}cm")
@@ -257,6 +279,7 @@ class PiCar:
                                 and turn angle: {turn_angle}. Angle changes should be in increments of 45 degrees.")
 
 if __name__ == "__main__":
+    # various testing, debugging
     point1 = Coordinate(5,2)
     point2 = Coordinate(10,6)
     
@@ -276,4 +299,17 @@ if __name__ == "__main__":
     print(turn_data)
     points_inbtwn = picar.get_points_inbtwn(point1, point2)
     [print(x) for x in points_inbtwn]
+    
+    # empty map
+    global_map = Maze(20,20)
+    print(global_map)
+    
+    # mark objects
+    for coord in points_inbtwn:
+        global_map.mark_object(coord)
+        
+    print(global_map)
+    
+    scan_sweep = picar.scan_sweep()
+    print(scan_sweep)
     
