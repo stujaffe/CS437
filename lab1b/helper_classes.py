@@ -20,6 +20,9 @@ class Coordinate(object):
     
     def __str__(self):
         return f"(x:{self.x},y:{self.y})"
+    
+    def __repr__(self):
+        return f"(x:{self.x},y:{self.y})"
 
 # class to hold the obstacle course
 class Maze(object):
