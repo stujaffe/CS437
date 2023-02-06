@@ -102,18 +102,8 @@ class PiCar(object):
 
     def get_movement_data(self, coord1: Coordinate, coord2: Coordinate) -> dict:
 
-        # angle between coordinates in 45 degree increments
-        angle_btwn = self.calc_angle_btwn(coord1=coord1, coord2=coord2)
-        # now adjust for the direction the car is heading. for example, the points (1,0) and (2,0) will have
-        # an angle_btwn value of -90 because that assumes that is facing north (degree=0) but if it is
-        # facing east (degree=-90), then there is no angle between them.
-        angle_btwn_adj = angle_btwn - Direction[self.direction].value
-
-        # now calculate the distance between the coordiantes using the law of cosines to generalize
-        a = (coord1.x**2 + coord1.y**2)**0.5
-        b = (coord2.x**2 + coord2.y**2)**0.5
-        c = math.radians(angle_btwn_adj)
-        distance = (a**2 + b**2 - 2*a*b*math.cos(c))**0.5
+        # euclidean distance
+        distance = ((coord1.x - coord2.x)**2 + (coord1.y - coord2.y)**2)**0.5
 
         # calculate the seconds to move
         seconds = distance / self.get_speed()

@@ -11,7 +11,7 @@ def main():
     global_map = Maze(300,300)
     
     global_start = Coordinate(0,0)
-    global_end = Coordinate(50,10)
+    global_end = Coordinate(100,50)
     
     # initialize the car
     picar = PiCar(start_loc=global_start, goal_loc=global_end)
@@ -29,12 +29,46 @@ def main():
             picar.logger.info(f"Congrats! The car has reached the destination point of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             picar.stop_car()
             break
-        if i >= len(path):
+        if len(path) == 1:
             picar.logger.info(f"Congrats! The car reached the end of the path, it's current location is {local_start} versus the goal of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             picar.stop_car()
             break
-        # ending point is the current coordinate in the path
-        local_end = path[i]
+        
+        # scan for obstacles and build a map
+        scan = picar.scan_sweep(for_map=True)
+        last_point = None
+        # fill in the map with obstacles
+        for item in scan:
+			# only mark if the object is close enough
+            if item[0] > -2:
+				# xy coordinate from angle and distance (adjusted for car's direction angle)
+                curr_point = picar.get_cartesian(angle=item[1],distance=item[0])
+				# fill in points in between if the last point had a reading
+                if last_point is not None:
+                    points_inbtwn = picar.get_points_inbtwn(last_point, curr_point)
+                    for point in points_inbtwn:
+					    # mark point on map
+                        global_map.mark_object(point)
+                        last_point = curr_point
+				# if last point doesn't exist yet, at least mark this point
+                else:
+                    global_map.mark_object(curr_point)
+		
+		# recompute the path with A* now that obstacles are marked
+        path = astar(maze = global_map, start=local_start, end=global_end)
+        picar.logger.info(f"Recomputed path with A*: {path}")
+	
+		# next point in the path should be the point reachable by not turning
+        local_end = path[-1] # default value is last point in the path
+        for point in path:
+            if local_start == point:
+                continue
+            turn_angle = picar.calc_angle_btwn(local_start, point) - Direction[picar.direction].value
+            picar.logger.info(f"Turn angle: {turn_angle}, point: {point}, current point: {local_start}")
+            if turn_angle != 0:
+                local_end = Coordinate(point.x,point.y)
+                break
+
         picar.logger.info(f"Local start : {local_start}")
         picar.logger.info(f"Local end : {local_end}")
         # don't try to navigate to car's current location
@@ -42,7 +76,7 @@ def main():
             picar.logger.info("Current car position is the same as next destination. Continuing along path.")
             i += 1
             continue
-        
+		
         # navigate to the current coordindate
         angle_btwn = picar.calc_angle_btwn(local_start, local_end)
         car_direction = Direction[picar.direction].value
@@ -60,9 +94,7 @@ def main():
 
         # move the car forward after turning
         picar.move_forward(movement_data.get("distance"), movement_data.get("seconds"))
-        
-        # increment the path counter
-        i += 1
+       
         
             
 if __name__ == "__main__":
