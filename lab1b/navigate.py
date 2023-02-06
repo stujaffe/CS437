@@ -244,6 +244,10 @@ class PiCar(object):
         # update the car's absolute direction
         prev_direction_angle = Direction[self.direction].value
         new_direction_angle = prev_direction_angle + turn_angle
+        if new_direction_angle < -180:
+            new_direction_angle = new_direction_angle + 360
+        elif new_direction_angle > 180:
+            new_direction_angle = new_direction_angle - 360
         self.logger.info(f"After turning LEFT, new direction angle: {new_direction_angle}, previous direction angle: {prev_direction_angle}")
         try:
             self.direction = Direction(new_direction_angle).name
@@ -259,6 +263,10 @@ class PiCar(object):
         # update the car's absolute direction
         prev_direction_angle = Direction[self.direction].value
         new_direction_angle = prev_direction_angle + turn_angle
+        if new_direction_angle < -180:
+            new_direction_angle = new_direction_angle + 360
+        elif new_direction_angle > 180:
+            new_direction_angle = new_direction_angle - 360
         self.logger.info(f"After turning RIGHT, new direction angle: {new_direction_angle}, previous direction angle: {prev_direction_angle}")
         try:
             self.direction = Direction(new_direction_angle).name

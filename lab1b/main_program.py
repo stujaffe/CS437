@@ -64,7 +64,6 @@ def main():
             if local_start == point:
                 continue
             turn_angle = picar.calc_angle_btwn(local_start, point) - Direction[picar.direction].value
-            picar.logger.info(f"Turn angle: {turn_angle}, point: {point}, current point: {local_start}")
             if turn_angle != 0:
                 local_end = Coordinate(point.x,point.y)
                 break
