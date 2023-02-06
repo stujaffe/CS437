@@ -79,7 +79,7 @@ def main():
         # navigate to the current coordindate
         angle_btwn = picar.calc_angle_btwn(local_start, local_end)
         car_direction = Direction[picar.direction].value
-        picar.logger.info(f"The angle between the points adjusted for car's direction: {angle_btwn-car_direction}")
+        picar.logger.info(f"The angle between the points assuming 0 degree direction: {angle_btwn}. Car's current angle direction: {car_direction}.")
         turn_data = picar.get_turn_data(angle_btwn)
         
         # turn the car if needed
