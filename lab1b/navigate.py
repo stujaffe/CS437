@@ -19,8 +19,8 @@ class PiCar(object):
         goal_loc: Coordinate,
         power: int = 10,
         direction: str = Direction.north.name,
-        angle_range: int = 140,
-        threshold: int = 15, # object clearance in cm
+        angle_range: int = 120,
+        threshold: int = 10, # object clearance in cm
     ) -> None:
         self.start_loc = start_loc
         self.goal_loc = goal_loc
@@ -146,7 +146,7 @@ class PiCar(object):
             distance_to_obj = fc.us.get_distance()
             if for_map == False and distance_to_obj <= self.threshold:
                 self.avoid_object()
-                return None
+                return -999
             scan_result.append((distance_to_obj, angle))
         # returns a list of tuples (distance cm, angle degrees)
         return scan_result
@@ -221,8 +221,19 @@ class PiCar(object):
     def move_forward(self, distance, seconds):
         self.logger.info(f"Moving FORWARD at {self.power} power for {seconds} seconds for a distance of {distance}cm")
         # move the car forwards for a number of seconds
-        fc.forward(self.power)
-        time.sleep(seconds)
+        curr_time = time.time()
+        stop_time = curr_time + seconds
+        # while the car is moving forward for the given number of seconds, scan the surroundings for object detection
+        # and if an object is found via self.scan_sweep(), a -999 return value results, so avoid object and break the loop..
+        while curr_time < stop_time:
+            fc.forward(self.power)
+            sweep = self.scan_sweep(for_map=False)
+            if sweep == -999:
+                # need a new distance since the car didn't travel the whole original distance
+                distance = max(0,(stop_time-curr_time)/seconds*distance)
+                self.logger.info(f"Stopped early due to object detection, traveled {distance}cm.")
+                break
+            curr_time = time.time()
         fc.stop()
 
         # save the current location
