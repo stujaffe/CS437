@@ -1,5 +1,6 @@
 from enum import Enum
 import numpy as np
+import logging
 
 class Coordinate(object):
     def __init__(self, x: int, y: int) -> None:
@@ -31,7 +32,11 @@ class Maze(object):
         self.y_length = y_length
         self.maze = np.zeros(shape=(x_length, y_length))
         self.shape = (x_length, y_length)
-    
+        self.logger = logging.getLogger()
+        logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+                datefmt='%Y-%m-%d:%H:%M:%S',
+                level=logging.DEBUG)
+
     def __str__(self):
         return str(self.maze)
     
@@ -45,10 +50,12 @@ class Maze(object):
         return self.maze.shape[0]
     
     def mark_object(self, coord: Coordinate) -> None:
-        if coord.x > self.x_length or coord.y > self.y_length:
+        if coord.x > self.x_length or coord.y > self.y_length or coord.x < 0 or coord.y < 0:
             pass
         else:
             self.maze[coord.x, coord.y] = 1
+            self.logger.info(f"Marked {coord} on map as an object.")
+            
 
 # hold the directions and their corresponding angles from the perspective of going north
 # using polar coordinates with 0 degrees as north and negative angles since the ultrasonic sensor

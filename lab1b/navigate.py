@@ -19,8 +19,8 @@ class PiCar(object):
         goal_loc: Coordinate,
         power: int = 10,
         direction: str = Direction.north.name,
-        angle_range: int = 120,
-        threshold: int = 10, # object clearance in cm
+        angle_range: int = 140,
+        threshold: int = 15, # object clearance in cm
     ) -> None:
         self.start_loc = start_loc
         self.goal_loc = goal_loc
@@ -171,7 +171,7 @@ class PiCar(object):
         # traveling southwest at 135 degrees, we need to get the correct cartesian
         # coordinates on an absolute basis on the map. That is, relative to north being
         # 0 degrees along the y-axis. Otherwise, incorrect cells will be calculated.
-        angle_adj = Direction[self.direction].value + angle
+        angle_adj = angle + Direction[self.direction].value
         # x is usually calculated using cosine and y from sine but that is from the perspective
         # of the x-axis and in this case the car has 0 degrees on the y-axis
         # x can be negative (since the car is in the middle of the grid along the x plane)
@@ -183,7 +183,6 @@ class PiCar(object):
         coord_rel = Coordinate(x, y)
         # absolute coorindate, taking into account where the car is
         coord_abs = Coordinate(self.current_loc.x + x, self.current_loc.y + y)
-        self.logger.info(f"Calculated abs point {coord_abs} from current loc {self.current_loc}, rel point {coord_rel}, {angle} angle, {distance} distance")
 
         return coord_abs
 
@@ -227,7 +226,7 @@ class PiCar(object):
         return points_inbtwn
     
     def avoid_object(self):
-        self.logger.info(f"Detected potential object with threshold of {self.threshold}cm. Stopping.")
+        self.logger.info(f"Detected potential object {self.distance_to_obj}cm away, within threshold of {self.threshold}cm. Stopping.")
         fc.stop()
 
     def move_forward(self, distance, seconds):
@@ -241,6 +240,7 @@ class PiCar(object):
             fc.forward(self.power)
             self.scan_sweep_avoid()
             if self.distance_to_obj > -2 and self.distance_to_obj <= self.threshold:
+                self.avoid_object()
                 # need a new distance since the car didn't travel the whole original distance
                 distance = max(0,(stop_time-curr_time)/seconds*distance)
                 self.logger.info(f"Stopped early due to object detection, traveled {distance}cm.")
