@@ -35,6 +35,7 @@ class PiCar(object):
         self.current_angle = 0
         self.speed_at_10 = 26.70
         self.threshold = threshold
+        self.distance_to_obj = -2
         self.logger = logging.getLogger()
         logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                 datefmt='%Y-%m-%d:%H:%M:%S',
@@ -126,7 +127,7 @@ class PiCar(object):
 
    
    # scan the area in front of the car for obstacle avoidance purposes
-    def scan_sweep_avoid(self) -> Union[int,None]:
+    def scan_sweep_avoid(self):
         self.current_angle += self.step
         if self.current_angle >= self.max_angle:
             self.current_angle = self.max_angle
@@ -136,10 +137,8 @@ class PiCar(object):
             self.step = abs(self.step)
 
         fc.servo.set_angle(self.current_angle)
-        distance_to_obj = fc.us.get_distance()
-        if distance_to_obj <= self.threshold
-            self.avoid_object()
-            return -999
+        self.distance_to_obj = fc.us.get_distance()
+        time.sleep(0.04)
 
 
     # scan the area in front of the car for mapping purposes
@@ -240,8 +239,8 @@ class PiCar(object):
         # and if an object is found via self.scan_sweep_avoid(), a -999 return value results, so avoid object and break the loop..
         while curr_time < stop_time:
             fc.forward(self.power)
-            sweep = self.scan_sweep_avoid()
-            if sweep == -999:
+            self.scan_sweep_avoid()
+            if self.distance_to_obj > -2 and self.distance_to_obj <= self.threshold:
                 # need a new distance since the car didn't travel the whole original distance
                 distance = max(0,(stop_time-curr_time)/seconds*distance)
                 self.logger.info(f"Stopped early due to object detection, traveled {distance}cm.")
