@@ -35,7 +35,7 @@ def main():
             break
         
         # scan for obstacles and build a map
-        scan = picar.scan_sweep(for_map=True)
+        scan = picar.scan_sweep_map()
         last_point = None
         # fill in the map with obstacles
         for item in scan:

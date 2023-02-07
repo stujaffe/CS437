@@ -124,10 +124,26 @@ class PiCar(object):
 
         return self.speed
 
-    # scan the area in front of the car. set for_map=True when you want
-    # to return the results, otherwise when for_map=False, this will scan
-    # for objects so the car can stop and not hit them.
-    def scan_sweep(self, for_map: bool=False) -> Union[List[Tuple[float, int]], None]:
+   
+   # scan the area in front of the car for obstacle avoidance purposes
+    def scan_sweep_avoid(self) -> Union[int,None]:
+        self.current_angle += self.step
+        if self.current_angle >= self.max_angle:
+            self.current_angle = self.max_angle
+            self.step = abs(self.step)*-1
+        elif self.current_angle <= self.min_angle:
+            self.current_angle = self.min_angle
+            self.step = abs(self.step)
+
+        fc.servo.set_angle(self.current_angle)
+        distance_to_obj = fc.us.get_distance()
+        if distance_to_obj <= self.threshold
+            self.avoid_object()
+            return -999
+
+
+    # scan the area in front of the car for mapping purposes
+    def scan_sweep_map(self) -> Union[List[Tuple[float, int]], None]:
         scan_result = []
         # ensure the sensor gets readings going in both directions depending upon
         # the current angle of the sensor.
@@ -144,9 +160,6 @@ class PiCar(object):
             self.current_angle = angle
             time.sleep(0.04)
             distance_to_obj = fc.us.get_distance()
-            if for_map == False and distance_to_obj <= self.threshold:
-                self.avoid_object()
-                return -999
             scan_result.append((distance_to_obj, angle))
         # returns a list of tuples (distance cm, angle degrees)
         return scan_result
@@ -224,10 +237,10 @@ class PiCar(object):
         curr_time = time.time()
         stop_time = curr_time + seconds
         # while the car is moving forward for the given number of seconds, scan the surroundings for object detection
-        # and if an object is found via self.scan_sweep(), a -999 return value results, so avoid object and break the loop..
+        # and if an object is found via self.scan_sweep_avoid(), a -999 return value results, so avoid object and break the loop..
         while curr_time < stop_time:
             fc.forward(self.power)
-            sweep = self.scan_sweep(for_map=False)
+            sweep = self.scan_sweep_avoid()
             if sweep == -999:
                 # need a new distance since the car didn't travel the whole original distance
                 distance = max(0,(stop_time-curr_time)/seconds*distance)
