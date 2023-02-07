@@ -24,6 +24,12 @@ class Coordinate(object):
     
     def __repr__(self):
         return f"(x:{self.x},y:{self.y})"
+    
+    def __hash__(self):
+        return hash((self.x, self.y))
+    
+    def __lt__(self, other):
+        return self.x < other.x
 
 # class to hold the obstacle course
 class Maze(object):
@@ -50,7 +56,7 @@ class Maze(object):
         return self.maze.shape[0]
     
     def mark_object(self, coord: Coordinate) -> None:
-        if coord.x > self.x_length or coord.y > self.y_length or coord.x < 0 or coord.y < 0:
+        if coord.x > self.x_length or coord.y > self.y_length:
             pass
         else:
             self.maze[coord.x, coord.y] = 1

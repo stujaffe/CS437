@@ -36,27 +36,24 @@ def main():
         
         # scan for obstacles and build a map
         scan = picar.scan_sweep_map()
-        last_point = None
-        last_angle = None
-        # fill in the map with obstacles
-        for i in range(len(scan)):
-            curr_item = scan[i]
-            # only mark item if it's close enough
-            if curr_item[0] > -2:
-                curr_point = picar.get_cartesian(angle=curr_item[1], distance=curr_item[0])
-                # mark point if the first reading in the scan
-                if i == 0:
-                    global_map.mark_object(curr_point)
-                # if past the first reading in the scan and consecutive angle readings had objects, mark points in between
-                elif i > 0 and abs(scan[i][1] - scan[i-1][1]) <= abs(picar.step):
-                    last_item = scan[i-1]
-                    last_point = picar.get_cartesian(angle=last_item[1], distance=last_item[0])
-                    points_inbtwn = picar.get_points_inbtwn(last_point, curr_point)
-                    for point in points_inbtwn:
-                        global_map.mark_object(point)
-                # if past the first reading but consecutive points did not have readings, just mark the solo point
-                    global_map.mark_object(curr_point)
+        
+        points = []
+		last_point = None
+		for item in scan:
+			curr_point = picar.get_cartesian(angle=item[1], distance=item[0])
+			points.append(curr_point)
+			if last_point is not None:
+				points_inbtwn = picar.get_points_inbtwn(last_point, curr_point)
+				for point in points_inbtwn:
+					points.append(point)
+			last_point = curr_point
+    
+		# dedup points
+		points = list(set(points))
 		
+		# mark the objects on the map
+		for point in points:
+			global_map.mark_object(point)
 
         # recompute the path with A* now that obstacles are marked
         path = astar(maze = global_map, start=local_start, end=global_end)

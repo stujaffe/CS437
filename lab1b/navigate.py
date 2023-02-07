@@ -20,7 +20,8 @@ class PiCar(object):
         power: int = 10,
         direction: str = Direction.north.name,
         angle_range: int = 140,
-        threshold: int = 15, # object clearance in cm
+        threshold: int = 15, # object avoidance clearance in cm
+        car_width_cm: int = 25,
     ) -> None:
         self.start_loc = start_loc
         self.goal_loc = goal_loc
@@ -36,10 +37,12 @@ class PiCar(object):
         self.speed_at_10 = 26.70
         self.threshold = threshold
         self.distance_to_obj = -2
+        self.car_width_cm = car_width_cm
         self.logger = logging.getLogger()
         logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                 datefmt='%Y-%m-%d:%H:%M:%S',
                 level=logging.DEBUG)
+        fc.servo.set_angle(self.current_angle)
 
     
     # calculate the angle (in degrees) between two coordinates on x,y plane given our 45 degree increment constraint
@@ -142,24 +145,28 @@ class PiCar(object):
 
 
     # scan the area in front of the car for mapping purposes
-    def scan_sweep_map(self) -> Union[List[Tuple[float, int]], None]:
+    # you can set a max distance (cm) for which the scan will return (distance, angle)
+    # since the ultrasonic sensor can be unreliable from too far
+    def scan_sweep_map(self, max_dist: int=50) -> Union[List[Tuple[float, int]], None]:
         scan_result = []
         # ensure the sensor gets readings going in both directions depending upon
         # the current angle of the sensor.
         if self.current_angle > 0:
             start_angle = self.max_angle
-            end_angle = self.min_angle - self.step
+            end_angle = self.min_angle
             step = abs(self.step)*-1
         else:
             start_angle = self.min_angle
-            end_angle = self.max_angle + self.step
+            end_angle = self.max_angle
             step = abs(self.step)
-        for angle in range(start_angle, end_angle, step):
+
+        for angle in range(start_angle, end_angle+step, step):
             fc.servo.set_angle(angle)
             self.current_angle = angle
             time.sleep(0.04)
             distance_to_obj = fc.us.get_distance()
-            scan_result.append((distance_to_obj, angle))
+            if distance_to_obj > -2 and distance_to_obj <= max_dist:
+                scan_result.append((distance_to_obj, angle))
         # returns a list of tuples (distance cm, angle degrees)
         return scan_result
 
@@ -199,29 +206,30 @@ class PiCar(object):
 
     # get all x,y points between two x,y points
     def get_points_inbtwn(
-        self, coord1: Coordinate, coord2: Coordinate
+        self, coord1: Coordinate, coord2: Coordinate, dist_threshold: float = 25.0
     ) -> List[Coordinate]:
+        
         points_inbtwn = []
-        # first get the slope
-        slope = self.get_slope(coord1, coord2)
-        # we know the equation of the line between two points is y=mx+b, where b is the y intercept
-        # calculate the y intercept using either x,y pair
-        b = coord1.y - slope * coord1.x
-        if b == -999:
-            return points_inbtwn
-        # now loop from the lower to higher x coordinate and get the x,y points in between
-        if coord1.x > coord2.x:
-            x_high = coord1.x
-            x_low = coord2.x
-        else:
-            x_high = coord2.x
-            x_low = coord1.x
-
-        for x in range(x_low+1, x_high):
-            y_calc = slope * x + b
-            point = Coordinate(x, y_calc)
-            if point not in points_inbtwn:
-                points_inbtwn.append(point)
+        
+        # calculate euclidean distance between points to see if we should interpolate them
+        dist = ((coord1.x - coord2.x)**2 + (coord1.y - coord2.y)**2)**0.5
+        
+        if dist <= dist_threshold:
+            # first get the slope
+            slope = self.get_slope(coord1, coord2)
+            # we know the equation of the line between two points is y=mx+b, where b is the y intercept
+            # calculate the y intercept using either x,y pair
+            b = coord1.y - slope * coord1.x
+            if b == -999:
+                return points_inbtwn
+            # now loop from the lower to higher x coordinate and get the x,y points in between
+            x_sorted = sorted([coord1.x, coord2.x])
+            
+            for x in range(x_sorted[0], x_sorted[1]):
+                y_calc = slope * x + b
+                point = Coordinate(x, y_calc)
+                if point not in points_inbtwn:
+                    points_inbtwn.append(point)
 
         return points_inbtwn
     
@@ -303,39 +311,51 @@ class PiCar(object):
 
 
 if __name__ == "__main__":
-    # various testing, debugging
-    point1 = Coordinate(0,0)
-    point2 = Coordinate(0,9)
     
-    angle1 = 45
-    distance1 = 10
-    
-    start = Coordinate(9,9)
-    end = Coordinate(9,0)
+    from astar import astar
+
+    start = Coordinate(0,0)
+    end = Coordinate(0,20)
+
     picar = PiCar(start_loc=start, goal_loc=end)
-    print(f"Current direction : {picar.direction}")
     
-    movement_data = picar.get_movement_data(point1, point2)
-    print(movement_data)
-    angle_btwn = picar.calc_angle_btwn(point1, point2)
-    print(angle_btwn)
-    turn_data = picar.get_turn_data(angle_btwn)
-    print(turn_data)
-    points_inbtwn = picar.get_points_inbtwn(point1, point2)
-    [print(x) for x in points_inbtwn]
+    global_map = Maze(50,50)
     
-    """
-    # empty map
-    global_map = Maze(20,20)
-    print(global_map)
+    path1 = astar(maze = global_map, start=start, end=end)
+
+    scan = picar.scan_sweep_map()
     
-    # mark objects
-    for coord in points_inbtwn:
-        global_map.mark_object(coord)
+    print(scan)
+    
+
+    points = []
+    last_point = None
+    for item in scan:
+        curr_point = picar.get_cartesian(angle=item[1], distance=item[0])
+        points.append(curr_point)
+        if last_point is not None:
+            points_inbtwn = picar.get_points_inbtwn(last_point, curr_point)
+            for point in points_inbtwn:
+                points.append(point)
+        last_point = curr_point
+    
+    # dedup points
+    points = list(set(points))
+    print(points)
+    
+    for point in points:
+        global_map.mark_object(point)
+    
+    path2 = astar(maze = global_map, start=start, end=end)
+    
+    print(path1)
+    print(path2)
+    
         
-    print(global_map)
     
-    scan_sweep = picar.scan_sweep()
-    print(scan_sweep)
-    """
-    
+        
+
+
+
+
+
