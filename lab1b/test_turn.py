@@ -8,7 +8,7 @@ if __name__ == "__main__":
     
     fc.turn_left(speed)
 
-    time.sleep(1.45)
+    time.sleep(1.75)
 
     fc.stop()
 

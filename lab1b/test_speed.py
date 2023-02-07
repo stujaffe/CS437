@@ -4,7 +4,7 @@ import time
 
 if __name__ == "__main__":
 
-    speed = 60
+    speed = 10
     
     fc.forward(speed)
 

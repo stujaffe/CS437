@@ -81,13 +81,13 @@ class PiCar(object):
         # calculate the time to turn. assumes power=30 when turning (from experimentation)
         turn_sec = 0
         if abs(angle_turn) == 45:
-            turn_sec = 0.51
+            turn_sec = 0.48
         elif abs(angle_turn) == 90:
-            turn_sec = 1
+            turn_sec = 0.92
         elif abs(angle_turn) == 135:
-            turn_sec = 1.45
+            turn_sec = 1.35
         elif abs(angle_turn) == 180:
-            turn_sec = 2.02
+            turn_sec = 1.75
         
         if angle_turn > 0:
             turn_command = "left"
