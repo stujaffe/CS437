@@ -234,7 +234,7 @@ class PiCar(object):
         return points_inbtwn
     
     def avoid_object(self):
-        self.logger.info(f"Detected potential object {self.distance_to_obj}cm away, within threshold of {self.threshold}cm. Stopping.")
+        self.logger.info(f"Detected potential object {self.distance_to_obj}cm away at an angle of {self.current_angle} degrees, within threshold of {self.threshold}cm. Stopping.")
         fc.stop()
 
     def move_forward(self, distance, seconds):

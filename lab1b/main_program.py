@@ -8,7 +8,7 @@ import math
 def main():
     
     # initialize map and start/end points
-    global_map = Maze(300,300)
+    global_map = Maze(3000,3000)
     
     global_start = Coordinate(0,0)
     global_end = Coordinate(100,100)
@@ -26,6 +26,9 @@ def main():
         if local_start == global_end:
             picar.logger.info(f"Congrats! The car has reached the destination point of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             picar.stop_car()
+            break
+        if ((local_start.x - global_end.x)**2 + (local_start.y - global_end.y)**2)**0.5 < 5:
+            picar.logger.info(f"Congrats! The car has reached pretty close to its destination point of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             break
         if path is not None and len(path) == 1:
             picar.logger.info(f"Congrats! The car reached the end of the path, it's current location is {local_start} versus the goal of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")

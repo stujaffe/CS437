@@ -161,20 +161,22 @@ def astar(maze, start: Coordinate, end: Coordinate):
 if __name__ == "__main__":
 
     import numpy as np
-    #maze = np.zeros((10,2))
-    #print(maze)
+    from helper_classes import Maze, Coordinate
 
     # Note for numpy arrays the "origin" is in the upper-left corner
     # and the axes are "flipped" so the x-axis would be the "vertical" one and vice-versa for the y-axis
-    maze = np.array([[0, 1, 0, 0, 0, 0],
-                     [0, 0, 0, 0, 0, 0],
-                     [0, 1, 0, 1, 1, 0],
-                     [0, 1, 0, 0, 1, 0],
-                     [0, 1, 0, 0, 1, 0]])
+    
+    maze = Maze(3000,3000)
 
+    y = 1
+    for x in range(0,2998):
+        coord = Coordinate(x,y)
+        maze.mark_object(coord)
+
+    print(maze)
 
     start = Coordinate(0,0)
-    end = Coordinate(2,4)
+    end = Coordinate(100,100)
 
     path = astar(maze, start, end)
     print(maze)
