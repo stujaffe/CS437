@@ -3,7 +3,7 @@ from astar import astar
 from navigate import PiCar
 from helper_classes import Coordinate, Maze, Direction
 import picar_4wd as fc
-
+import math
 
 def main():
     
@@ -16,12 +16,10 @@ def main():
     # initialize the car
     picar = PiCar(start_loc=global_start, goal_loc=global_end)
     
-    # get the initial A* path
-    path = astar(maze = global_map, start=global_start, end=global_end)
-    picar.logger.info(f"Starting Path: {path}")
     # navigate the car along the path
-    i = 0
     while True:
+        
+        path = None
         # starting point is the car's current location
         local_start = picar.current_loc
         # end navigation if car has reached it's destination
@@ -29,7 +27,7 @@ def main():
             picar.logger.info(f"Congrats! The car has reached the destination point of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             picar.stop_car()
             break
-        if len(path) == 1:
+        if path is not None and len(path) == 1:
             picar.logger.info(f"Congrats! The car reached the end of the path, it's current location is {local_start} versus the goal of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             picar.stop_car()
             break
@@ -38,40 +36,50 @@ def main():
         scan = picar.scan_sweep_map()
         
         points = []
-		last_point = None
-		for item in scan:
-			curr_point = picar.get_cartesian(angle=item[1], distance=item[0])
-			points.append(curr_point)
-			if last_point is not None:
-				points_inbtwn = picar.get_points_inbtwn(last_point, curr_point)
-				for point in points_inbtwn:
-					points.append(point)
-			last_point = curr_point
+        last_point = None
+        for item in scan:
+            curr_point = picar.get_cartesian(angle=item[1], distance=item[0])
+            points.append(curr_point)
+            if last_point is not None:
+                points_inbtwn = picar.get_points_inbtwn(last_point, curr_point)
+                for point in points_inbtwn:
+                    points.append(point)
+            last_point = curr_point
     
-		# dedup points and sort
-		points = sorted(list(set(points)))
-		
-		# mark the objects on the map
-		for point in points:
-			global_map.mark_object(point)
+        # dedup points and sort
+        points = sorted(list(set(points)))
+        
+        # mark the objects on the map
+        for point in points:
+            global_map.mark_object(point)
         
         # mark points in either direction direction along the a-xis so the car
         # has room to move around the object, otherwise the A* algo will just
         # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
-        # only use the beginning and end points of the scan reading
-        for point in [points[0],points[-1]]:
-            buff = math.ceil(picar.car_width_cm/2)
-            buff_x_low = point.x-buff
-            buff_x_high = point.x+buff
-            for x in range(buff_x_low, buff_x_high+1):
-                if global_map[x, point.y] == 0:
-                    buff_point = Coordinate(x, point.y)
-                    global_map.mark_object(buff_point)
+        if len(points) > 0:
+            for point in points:
+                 buff = math.ceil(picar.car_width_cm/4)
+                 buff_x_low = point.x-buff
+                 buff_x_high = point.x+buff
+                 for x in range(buff_x_low, buff_x_high+1):
+                     if global_map[x, point.y] == 0:
+                         buff_point = Coordinate(x, point.y)
+                         global_map.mark_object(buff_point)
+                 buff_y_low = point.y
+                 buff_y_high = point.y + buff
+                 for y in range(buff_y_low, buff_y_high):
+                     if global_map[point.x, y] == 0:
+                         buff_point = Coordinate(point.x, y)
+                         global_map.mark_object(buff_point)
+
+
+        picar.logger.info(f"Total obstacles now marked on the map: {global_map.maze.sum()}")
 
         # recompute the path with A* now that obstacles are marked
+        picar.logger.info("Attempting to recompute new A* path.")
         path = astar(maze = global_map, start=local_start, end=global_end)
         picar.logger.info(f"Recomputed path with A*: {path}")
-	
+    
         # next point in the path should be the point reachable by not turning
         local_end = path[-1] # default value is last point in the path
         for point in path:
@@ -87,9 +95,8 @@ def main():
         # don't try to navigate to car's current location
         if local_start == local_end:
             picar.logger.info("Current car position is the same as next destination. Continuing along path.")
-            i += 1
             continue
-		
+        
         # navigate to the current coordindate
         angle_btwn = picar.calc_angle_btwn(local_start, local_end)
         car_direction = Direction[picar.direction].value

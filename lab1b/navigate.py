@@ -20,7 +20,7 @@ class PiCar(object):
         power: int = 10,
         direction: str = Direction.north.name,
         angle_range: int = 140,
-        threshold: int = 15, # object avoidance clearance in cm
+        threshold: int = 20, # object avoidance clearance in cm
         car_width_cm: int = 25,
     ) -> None:
         self.start_loc = start_loc
