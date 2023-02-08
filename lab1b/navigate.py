@@ -315,11 +315,11 @@ if __name__ == "__main__":
     from astar import astar
 
     start = Coordinate(0,0)
-    end = Coordinate(0,20)
+    end = Coordinate(50,50)
 
     picar = PiCar(start_loc=start, goal_loc=end)
     
-    global_map = Maze(50,50)
+    global_map = Maze(100,100)
     
     path1 = astar(maze = global_map, start=start, end=end)
 
@@ -340,16 +340,40 @@ if __name__ == "__main__":
         last_point = curr_point
     
     # dedup points
-    points = list(set(points))
+    points = sorted(list(set(points)))
     print(points)
     
+    buff_points = []
     for point in points:
         global_map.mark_object(point)
+    # mark points in either direction direction along the a-xis so the car
+    # has room to move around the object, otherwise the A* algo will just
+    # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
+    for point in [points[0],points[-1]]:
+        buff = math.ceil(picar.car_width_cm/2)
+        buff_x_low = point.x-buff
+        buff_x_high = point.x+buff
+        print(point)
+        print(buff_x_low)
+        print(buff_x_high)
+        for x in range(buff_x_low, buff_x_high+1):
+            if global_map[x, point.y] == 0:
+                buff_point = Coordinate(x, point.y)
+                global_map.mark_object(buff_point)
+                buff_points.append(buff_point)
+
+    # dedup points
+    points.extend(buff_points)
+    points = sorted(list(set(points)))
+    #print(points)
+    
+    print(len(points))
+    print(global_map.maze.sum())
     
     path2 = astar(maze = global_map, start=start, end=end)
     
-    print(path1)
     print(path2)
+
     
         
     

@@ -48,12 +48,25 @@ def main():
 					points.append(point)
 			last_point = curr_point
     
-		# dedup points
-		points = list(set(points))
+		# dedup points and sort
+		points = sorted(list(set(points)))
 		
 		# mark the objects on the map
 		for point in points:
 			global_map.mark_object(point)
+        
+        # mark points in either direction direction along the a-xis so the car
+        # has room to move around the object, otherwise the A* algo will just
+        # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
+        # only use the beginning and end points of the scan reading
+        for point in [points[0],points[-1]]:
+            buff = math.ceil(picar.car_width_cm/2)
+            buff_x_low = point.x-buff
+            buff_x_high = point.x+buff
+            for x in range(buff_x_low, buff_x_high+1):
+                if global_map[x, point.y] == 0:
+                    buff_point = Coordinate(x, point.y)
+                    global_map.mark_object(buff_point)
 
         # recompute the path with A* now that obstacles are marked
         path = astar(maze = global_map, start=local_start, end=global_end)
@@ -89,7 +102,7 @@ def main():
         if turn_data.get("turn_direction") == "right":
             picar.turn_right(turn_data.get("seconds"),turn_data.get("angle"))
 
-        # VERY IMPORTANT! get the movement data AFTER turning since it depends on which direction the car is facing
+        # get distance between coordinates and seconds to move based on ucrrent power
         movement_data = picar.get_movement_data(local_start, local_end)
 
         # move the car forward after turning

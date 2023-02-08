@@ -47,10 +47,13 @@ class Maze(object):
         return str(self.maze)
     
     def __getitem__(self, idx):
-        if type(idx) == int:
-            return self.maze[idx]
-        else:
-            return self.maze[idx[0],idx[1]]
+        try:
+            if type(idx) == int:
+                return self.maze[idx]
+            else:
+                return self.maze[idx[0],idx[1]]
+        except IndexError:
+            return None
     
     def __len__(self):
         return self.maze.shape[0]
@@ -60,7 +63,6 @@ class Maze(object):
             pass
         else:
             self.maze[coord.x, coord.y] = 1
-            self.logger.info(f"Marked {coord} on map as an object.")
             
 
 # hold the directions and their corresponding angles from the perspective of going north
