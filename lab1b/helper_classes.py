@@ -59,7 +59,7 @@ class Maze(object):
         return self.maze.shape[0]
     
     def mark_object(self, coord: Coordinate) -> None:
-        if coord.x > self.x_length or coord.y > self.y_length:
+        if coord.x > self.x_length or coord.y > self.y_length or coord.x < 0 or coord.y < 0:
             pass
         else:
             self.maze[coord.x, coord.y] = 1

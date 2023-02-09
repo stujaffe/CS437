@@ -12,7 +12,7 @@ def main():
     global_map = Maze(3000,3000)
     
     global_start = Coordinate(0,0)
-    global_end = Coordinate(100,100)
+    global_end = Coordinate(50,20)
     
     # initialize the car
     picar = PiCar(start_loc=global_start, goal_loc=global_end)
@@ -62,6 +62,7 @@ def main():
         # mark points in either direction direction along the a-xis so the car
         # has room to move around the object, otherwise the A* algo will just
         # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
+        all_buff_points = []
         if len(points) > 0:
             radius = 2
             # mark buffers around the points
@@ -70,10 +71,16 @@ def main():
                 for buff_point in buff_points:
                     if buff_point != picar.current_loc:
                         global_map.mark_object(buff_point)
-                
+                        # for logging purposes, make sure the point was actually marked
+                        if global_map[buff_point.x,buff_point.y] == 1:
+                            all_buff_points.append(buff_point)
+
+        all_buff_points = sorted(list(set(all_buff_points)))
+
+        picar.logger.info(f"The following buffer points were marked: {all_buff_points}")
 
         picar.logger.info(f"Total obstacles now marked on the map: {global_map.maze.sum()}")
-        np.savetxt(f"saved_maps/global_map_{int(global_map.maze.sum())}.txt",global_map.maze,fmt="%d")
+        #np.savetxt(f"saved_maps/global_map_{int(global_map.maze.sum())}.txt",global_map.maze,fmt="%d")
 
         # recompute the path with A* now that obstacles are marked
         picar.logger.info("Attempting to recompute new A* path.")
