@@ -4,6 +4,7 @@ from navigate import PiCar
 from helper_classes import Coordinate, Maze, Direction
 import picar_4wd as fc
 import math
+import numpy as np
 
 def main():
     
@@ -51,7 +52,9 @@ def main():
     
         # dedup points and sort
         points = sorted(list(set(points)))
-        
+
+        picar.logger.info(f"Current location: {picar.current_loc}. Potential objects just mapped: {points}")
+
         # mark the objects on the map
         for point in points:
             global_map.mark_object(point)
@@ -60,27 +63,24 @@ def main():
         # has room to move around the object, otherwise the A* algo will just
         # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
         if len(points) > 0:
+            buff = int(picar.car_width_cm/4)
+            # mark buffers around the points
             for point in points:
-                 buff = math.ceil(picar.car_width_cm/4)
-                 buff_x_low = point.x-buff
-                 buff_x_high = point.x+buff
-                 for x in range(buff_x_low, buff_x_high+1):
-                     if global_map[x, point.y] == 0:
-                         buff_point = Coordinate(x, point.y)
-                         global_map.mark_object(buff_point)
-                 buff_y_low = point.y
-                 buff_y_high = point.y + buff
-                 for y in range(buff_y_low, buff_y_high):
-                     if global_map[point.x, y] == 0:
-                         buff_point = Coordinate(point.x, y)
-                         global_map.mark_object(buff_point)
-
+                for x in range(point.x-buff, point.x+buff+1):
+                    buff_point = Coordinate(x, point.y)
+                    if buff_point != picar.current_loc:
+                        global_map.mark_object(buff_point)
+                for y in range(point.y-buff, point.y+buff+1):
+                    buff_point = Coordinate(point.x,y)
+                    if buff_point != picar.current_loc:
+                        global_map.mark_object(buff_point)
 
         picar.logger.info(f"Total obstacles now marked on the map: {global_map.maze.sum()}")
+        np.savetxt(f"saved_maps/global_map_{int(global_map.maze.sum())}.txt",global_map.maze,fmt="%d")
 
         # recompute the path with A* now that obstacles are marked
         picar.logger.info("Attempting to recompute new A* path.")
-        path = astar(maze = global_map, start=local_start, end=global_end)
+        path = astar(array = global_map, start=local_start, end=global_end)
         picar.logger.info(f"Recomputed path with A*: {path}")
     
         # next point in the path should be the point reachable by not turning

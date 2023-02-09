@@ -1,119 +1,73 @@
 import numpy as np
+import heapq
 
-class Node():
-    """
-    A node class for A* search algorithm
-    """
-    def __init__(self, parent=None, position=None):
-        self.parent = parent
-        self.position = position
-        self.g = 0
-        self.h = 0
-        self.f = 0
+def heuristic(a, b):
+    # calculate the Euclidean distance as the heuristic
+    return np.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)
 
-    def __eq__(self, other):
-        return self.position == other.position
+def astar(array, start, end):
 
-def astar(maze, start, end):
-    """
-    Returns a list as a path from the starting point to the ending point in the maze all provided as inputs
-    Based on the Node class, create start and end nodes and initialize scores
-    """
-    start_node = Node(None, start)
-    #print(start_node.parent)
-    start_node.g = start_node.h = start_node.f = 0
-    end_node = Node(None, end)
-    end_node.g = end_node.h = end_node.f = 0
-    
-    #Initialize both open and closed list for sorting neighbour nodes
-    
-    open_list = []
-    closed_list = []
-    
-    # Add the start node to the open list
-    open_list.append(start_node)
+    start = (start[0],start[1])
+    end = (end[0],end[1])
 
-    # Loop until you find the end point
-    
-    while len(open_list) > 0:
+    # initialize the heap for the open list and the closed list
+    heap = []
+    heapq.heappush(heap, (0, start))
+    closed_list = set()
 
-        # Get the current node
-        current_node = open_list[0]
-        current_index = 0
-        for index, item in enumerate(open_list):
-            if item.f < current_node.f:
-                current_node = item
-                current_index = index
+    # initialize the distances and parent nodes
+    g_values = {start: 0}
+    f_values = {start: heuristic(start, end)}
+    parents = {start: None}
 
-        # Pop current off open list, add to closed list
-        open_list.pop(current_index)
-        closed_list.append(current_node)
+    while heap:
+        (f, current) = heapq.heappop(heap)
 
-        # Found the goal
-        if current_node == end_node:
+        if current == end:
+            # reconstruct the path from the parent nodes
             path = []
-            current = current_node
             while current is not None:
-                path.append(current.position)
-                current = current.parent
-            return path[::-1] # Return reversed path
+                path.append(current)
+                current = parents[current]
+            path.reverse()
+            return path
 
-        # Generate children
-        children = []
-        # Searching in adjacent nodes
-        for adj_nodes in [(0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]:
+        closed_list.add(current)
 
-            # Get the adjacent node position
-            node_position = (current_node.position[0] + adj_nodes[0], current_node.position[1] + adj_nodes[1])
+        for direction in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            neighbor = (current[0] + direction[0], current[1] + direction[1])
 
-            # Make sure within range of the maze
-            if node_position[0] > (len(maze) - 1) or node_position[0] < 0 or node_position[1] > (len(maze[len(maze)-1]) -1) or node_position[1] < 0:
+            if (neighbor[0] < 0 or neighbor[0] >= array.shape[0] or
+                neighbor[1] < 0 or neighbor[1] >= array.shape[1] or
+                array[neighbor[0]][neighbor[1]] == 1 or
+                neighbor in closed_list):
                 continue
 
-            # Adjacent node is not an obstacle            
-            if maze[node_position[0]][node_position[1]] != 0:
+            g = g_values[current] + 1
+            f = g + heuristic(neighbor, end)
+
+            if neighbor in g_values and g >= g_values[neighbor]:
                 continue
 
-            # Create new node
-            new_node = Node(current_node, node_position)
+            heapq.heappush(heap, (f, neighbor))
+            g_values[neighbor] = g
+            f_values[neighbor] = f
+            parents[neighbor] = current
 
-            # Append
-            children.append(new_node)
+    return None
 
-        # Loop through children
-        for child in children:
-
-            # Child is on the closed list
-            for closed_child in closed_list:
-                if child == closed_child:
-                    continue
-
-            # Create the f, g, and h values
-            child.g = current_node.g + 1
-            child.h = ((child.position[0] - end_node.position[0]) ** 2) + ((child.position[1] - end_node.position[1]) ** 2)
-            child.f = child.g + child.h
-
-            # Child is already in the open list
-            for open_node in open_list:
-                if child == open_node and child.g > open_node.g:
-                    continue
-
-            # Add the child to the open list
-            open_list.append(child)
 
 if __name__ == '__main__':
     
-    maze = np.zeros([3000,3000])
+    maze_save = np.loadtxt("saved_maps/global_map_481.txt",dtype=int)
+    
 
-    y = 1
-    for x in range(0,2998):
-        maze[x, y] = 1
-
-    print(maze)
-
-    start = (0,0)
+    start = (25,24)
     end = (100,100)
 
-    path = astar(maze, start, end)
-    print(maze)
+    path = astar(maze_save, start, end)
+    
+    maze_save_area = maze_save[start[0]-5:start[0]+5,start[1]-5:start[1]+5]
+
+    print(maze_save_area)
     print(path)
