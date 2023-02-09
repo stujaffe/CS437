@@ -63,17 +63,14 @@ def main():
         # has room to move around the object, otherwise the A* algo will just
         # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
         if len(points) > 0:
-            buff = int(picar.car_width_cm/4)
+            radius = 2
             # mark buffers around the points
             for point in points:
-                for x in range(point.x-buff, point.x+buff+1):
-                    buff_point = Coordinate(x, point.y)
+                buff_points = picar.within_radius(point, radius)
+                for buff_point in buff_points:
                     if buff_point != picar.current_loc:
                         global_map.mark_object(buff_point)
-                for y in range(point.y-buff, point.y+buff+1):
-                    buff_point = Coordinate(point.x,y)
-                    if buff_point != picar.current_loc:
-                        global_map.mark_object(buff_point)
+                
 
         picar.logger.info(f"Total obstacles now marked on the map: {global_map.maze.sum()}")
         np.savetxt(f"saved_maps/global_map_{int(global_map.maze.sum())}.txt",global_map.maze,fmt="%d")

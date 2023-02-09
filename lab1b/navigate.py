@@ -203,6 +203,17 @@ class PiCar(object):
             slope = float(-999)
 
         return slope
+    
+    # find all the points with a certain radius of a given point
+    # using Euclidean distance
+    def within_radius(self, coord1, radius):
+        points = []
+        for x2 in range(coord1.x - radius, coord1.x + radius + 1):
+            for y2 in range(coord1.x - radius, coord1.y + radius + 1):
+                if (x2 - coord1.x)**2 + (y2 - coord1.y)**2 <= radius**2:
+                    points.append(Coordinate(x2,y2))
+        return points
+
 
     # get all x,y points between two x,y points
     def get_points_inbtwn(

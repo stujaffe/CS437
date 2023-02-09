@@ -59,10 +59,10 @@ def astar(array, start, end):
 
 if __name__ == '__main__':
     
-    maze_save = np.loadtxt("saved_maps/global_map_481.txt",dtype=int)
+    maze_save = np.loadtxt("saved_maps/global_map_254.txt",dtype=int)
     
 
-    start = (25,24)
+    start = (80,79)
     end = (100,100)
 
     path = astar(maze_save, start, end)
