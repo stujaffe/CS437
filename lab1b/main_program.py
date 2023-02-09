@@ -12,7 +12,7 @@ def main():
     global_map = Maze(3000,3000)
     
     global_start = Coordinate(0,0)
-    global_end = Coordinate(50,20)
+    global_end = Coordinate(100,100)
     
     # initialize the car
     picar = PiCar(start_loc=global_start, goal_loc=global_end)
@@ -80,7 +80,7 @@ def main():
         picar.logger.info(f"The following buffer points were marked: {all_buff_points}")
 
         picar.logger.info(f"Total obstacles now marked on the map: {global_map.maze.sum()}")
-        #np.savetxt(f"saved_maps/global_map_{int(global_map.maze.sum())}.txt",global_map.maze,fmt="%d")
+        np.savetxt(f"saved_maps/global_map_{int(global_map.maze.sum())}.txt",global_map.maze,fmt="%d")
 
         # recompute the path with A* now that obstacles are marked
         picar.logger.info("Attempting to recompute new A* path.")

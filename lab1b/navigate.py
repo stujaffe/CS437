@@ -178,7 +178,7 @@ class PiCar(object):
         # traveling southwest at 135 degrees, we need to get the correct cartesian
         # coordinates on an absolute basis on the map. That is, relative to north being
         # 0 degrees along the y-axis. Otherwise, incorrect cells will be calculated.
-        angle_adj = angle + Direction[self.direction].value
+        angle_adj = (angle + Direction[self.direction].value) % 360
         # x is usually calculated using cosine and y from sine but that is from the perspective
         # of the x-axis and in this case the car has 0 degrees on the y-axis
         # x can be negative (since the car is in the middle of the grid along the x plane)
@@ -209,7 +209,7 @@ class PiCar(object):
     def within_radius(self, coord1, radius):
         points = []
         for x2 in range(coord1.x - radius, coord1.x + radius + 1):
-            for y2 in range(coord1.x - radius, coord1.y + radius + 1):
+            for y2 in range(coord1.y - radius, coord1.y + radius + 1):
                 if (x2 - coord1.x)**2 + (y2 - coord1.y)**2 <= radius**2:
                     points.append(Coordinate(x2,y2))
         return points
@@ -231,7 +231,7 @@ class PiCar(object):
             # we know the equation of the line between two points is y=mx+b, where b is the y intercept
             # calculate the y intercept using either x,y pair
             b = coord1.y - slope * coord1.x
-            if b == -999:
+            if slope == -999:
                 return points_inbtwn
             # now loop from the lower to higher x coordinate and get the x,y points in between
             x_sorted = sorted([coord1.x, coord2.x])
