@@ -6,9 +6,9 @@ import math
 
 def heuristic(coord1, coord2):
     # calculate the Euclidean distance as the heuristic
-    # return math.ceil(np.sqrt((coord1.x - coord2.x) ** 2 + (coord1.y - coord2.y) ** 2))
-    manhattan_dist = abs(coord1.x - coord2.x) + abs(coord1.y - coord2.y)
-    return manhattan_dist
+    return math.ceil(np.sqrt((coord1.x - coord2.x) ** 2 + (coord1.y - coord2.y) ** 2))
+    # manhattan_dist = abs(coord1.x - coord2.x) + abs(coord1.y - coord2.y)
+    # return manhattan_dist
 
 def astar(array, start, end):
 

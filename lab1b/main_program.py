@@ -12,7 +12,7 @@ def main():
     global_map = Maze(3000,3000)
     
     global_start = Coordinate(0,0)
-    global_end = Coordinate(100,100)
+    global_end = Coordinate(100,30)
     
     # initialize the car
     picar = PiCar(start_loc=global_start, goal_loc=global_end)
