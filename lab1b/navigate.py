@@ -20,7 +20,7 @@ class PiCar(object):
         power: int = 10,
         direction: str = Direction.north.name,
         angle_range: int = 140,
-        threshold: int = 20, # object avoidance clearance in cm
+        threshold: int = 10, # object avoidance clearance in cm
         car_width_cm: int = 25,
     ) -> None:
         self.start_loc = start_loc
@@ -58,8 +58,6 @@ class PiCar(object):
         # arctan function with the x and y swapped will return 90 degrees for a point directly "east" of another point
         # on the x-axis but we need that point to be -90 degrees.
         angle_degrees = math.degrees(math.atan2(x_delta, y_delta))*-1
-        # round the closest 45 degree increment
-        angle_degrees = round(angle_degrees/45)*45
 
         return angle_degrees
     
@@ -141,7 +139,7 @@ class PiCar(object):
 
         fc.servo.set_angle(self.current_angle)
         self.distance_to_obj = fc.us.get_distance()
-        time.sleep(0.04)
+        time.sleep(0.02)
 
 
     # scan the area in front of the car for mapping purposes
@@ -205,44 +203,51 @@ class PiCar(object):
         return slope
     
     # find all the points with a certain radius of a given point
-    # using Euclidean distance
     def within_radius(self, coord1, radius):
         points = []
         for x2 in range(coord1.x - radius, coord1.x + radius + 1):
             for y2 in range(coord1.y - radius, coord1.y + radius + 1):
-                if (x2 - coord1.x)**2 + (y2 - coord1.y)**2 <= radius**2:
-                    points.append(Coordinate(x2,y2))
+                points.append(Coordinate(x2,y2))
         return points
-
-
-    # get all x,y points between two x,y points
-    def get_points_inbtwn(
-        self, coord1: Coordinate, coord2: Coordinate, dist_threshold: float = 25.0
-    ) -> List[Coordinate]:
+    
+    # calculate the points between two coordinates with a supercover line that catches
+    # all the coordinates in between
+    # from this website: https://www.redblobgames.com/grids/line-drawing.html
+    @staticmethod
+    def supercover_line(coord1: Coordinate, coord2: Coordinate, dist_threshold: int = 15, 
+    blocked_coords: List[Coordinate] = []) -> List[Coordinate]:
         
-        points_inbtwn = []
-        
-        # calculate euclidean distance between points to see if we should interpolate them
-        dist = ((coord1.x - coord2.x)**2 + (coord1.y - coord2.y)**2)**0.5
-        
-        if dist <= dist_threshold:
-            # first get the slope
-            slope = self.get_slope(coord1, coord2)
-            # we know the equation of the line between two points is y=mx+b, where b is the y intercept
-            # calculate the y intercept using either x,y pair
-            b = coord1.y - slope * coord1.x
-            if slope == -999:
-                return points_inbtwn
-            # now loop from the lower to higher x coordinate and get the x,y points in between
-            x_sorted = sorted([coord1.x, coord2.x])
-            
-            for x in range(x_sorted[0], x_sorted[1]):
-                y_calc = slope * x + b
-                point = Coordinate(x, y_calc)
-                if point not in points_inbtwn:
-                    points_inbtwn.append(point)
-
-        return points_inbtwn
+        # make sure the points are close enough before interpolating
+        if ((coord1.x - coord2.x)**2 + (coord1.y - coord2.y)**2)**0.5 > dist_threshold:
+            return [coord1, coord2]
+        else:
+            dx = coord2.x - coord1.x
+            dy = coord2.y - coord1.y
+            nx = abs(dx)
+            ny = abs(dy)
+            sign_x = 1 if dx > 0 else -1
+            sign_y = 1 if dy > 0 else -1
+            p = Coordinate(coord1.x, coord1.y)
+            prev_p = p
+            points = [p]
+            ix, iy = 0, 0
+            while ix < nx or iy < ny:
+                decision = (1 + 2 * ix) * ny - (1 + 2 * iy) * nx
+                if decision == 0:
+                    p = Coordinate(p.x + sign_x, p.y + sign_y)
+                    ix += 1
+                    iy += 1
+                elif decision < 0:
+                    p = Coordinate(p.x + sign_x, p.y)
+                    ix += 1
+                else:
+                    p = Coordinate(p.x, p.y + sign_y)
+                    iy += 1
+                if p in blocked_coords:
+                    break
+                points.append(p)
+                
+            return points
     
     def avoid_object(self):
         object_coord = self.get_cartesian(self.current_angle, self.distance_to_obj)
@@ -250,22 +255,22 @@ class PiCar(object):
         fc.stop()
 
     def move_forward(self, distance, seconds):
-        self.logger.info(f"Moving FORWARD at {self.power} power for {seconds} seconds for a distance of {distance}cm")
+        self.logger.info(f"Moving FORWARD at {self.power} power for {round(seconds,2)}sec for a distance of {round(distance,2)}cm")
         # move the car forwards for a number of seconds
-        curr_time = time.time()
-        stop_time = curr_time + seconds
+        stop_time = time.time() + seconds
         # while the car is moving forward for the given number of seconds, scan the surroundings for object detection
         # and if an object is found via self.scan_sweep_avoid(), a -999 return value results, so avoid object and break the loop..
-        while curr_time < stop_time:
+        while time.time() < stop_time:
             fc.forward(self.power)
             self.scan_sweep_avoid()
             if self.distance_to_obj > -2 and self.distance_to_obj <= self.threshold:
                 self.avoid_object()
+                curr_time = time.time()
                 # need a new distance since the car didn't travel the whole original distance
-                distance = max(0,(stop_time-curr_time)/seconds*distance)
-                self.logger.info(f"Stopped early due to object detection, traveled {distance}cm.")
+                move_time = stop_time - curr_time
+                distance = max(0,(move_time/seconds*distance))
+                self.logger.info(f"Stopped early due to object detection, traveled {round(distance,2)}cm in {round(move_time,2)}sec.")
                 break
-            curr_time = time.time()
         fc.stop()
 
         # save the current location
@@ -333,58 +338,18 @@ if __name__ == "__main__":
     
     global_map = Maze(100,100)
     
-    path1 = astar(maze = global_map, start=start, end=end)
-
-    scan = picar.scan_sweep_map()
+    coord1 = Coordinate(0,0)
+    coord2 = Coordinate(0,100)
     
-    print(scan)
-    
-
-    points = []
-    last_point = None
-    for item in scan:
-        curr_point = picar.get_cartesian(angle=item[1], distance=item[0])
-        points.append(curr_point)
-        if last_point is not None:
-            points_inbtwn = picar.get_points_inbtwn(last_point, curr_point)
-            for point in points_inbtwn:
-                points.append(point)
-        last_point = curr_point
-    
-    # dedup points
-    points = sorted(list(set(points)))
+    points = picar.supercover_line(coord1,coord2)
     print(points)
     
-    buff_points = []
-    for point in points:
-        global_map.mark_object(point)
-    # mark points in either direction direction along the a-xis so the car
-    # has room to move around the object, otherwise the A* algo will just
-    # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
-    for point in [points[0],points[-1]]:
-        buff = math.ceil(picar.car_width_cm/2)
-        buff_x_low = point.x-buff
-        buff_x_high = point.x+buff
-        print(point)
-        print(buff_x_low)
-        print(buff_x_high)
-        for x in range(buff_x_low, buff_x_high+1):
-            if global_map[x, point.y] == 0:
-                buff_point = Coordinate(x, point.y)
-                global_map.mark_object(buff_point)
-                buff_points.append(buff_point)
-
-    # dedup points
-    points.extend(buff_points)
-    points = sorted(list(set(points)))
-    #print(points)
+    print(picar.within_radius(Coordinate(10,10),1))
     
-    print(len(points))
-    print(global_map.maze.sum())
     
-    path2 = astar(maze = global_map, start=start, end=end)
     
-    print(path2)
+    
+    
 
     
         

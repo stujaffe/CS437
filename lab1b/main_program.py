@@ -16,9 +16,17 @@ def main():
     
     # initialize the car
     picar = PiCar(start_loc=global_start, goal_loc=global_end)
+
+    # keep track of the cycle so we can periodically clear the map
+    cycle = 0
     
     # navigate the car along the path
     while True:
+
+        # clear the map if every 2nd cycle
+        if cycle > 0 and cycle % 2 == 0:
+            global_map.maze.fill(0)
+            picar.logger.info(f"Cleared the global map. Number of marked objects now: {global_map.maze.sum()}")
         
         path = None
         # starting point is the car's current location
@@ -39,34 +47,47 @@ def main():
         # scan for obstacles and build a map
         scan = picar.scan_sweep_map()
         
-        points = []
-        last_point = None
+        # get the cartesian coordinates from the ultrasonic sensor readings
+        scan_points = []
         for item in scan:
             curr_point = picar.get_cartesian(angle=item[1], distance=item[0])
-            points.append(curr_point)
+            scan_points.append(curr_point)
+        
+        scan_points = sorted(scan_points)
+        
+        picar.logger.info(f"Current location: {picar.current_loc}. Objects detected at: {scan_points}")
+            
+        # interpolation of the scanned points
+        scan_points_lerp = []
+        last_point = None
+        for point in scan_points:
+            scan_points_lerp.append(point)
             if last_point is not None:
-                points_inbtwn = picar.get_points_inbtwn(last_point, curr_point)
-                for point in points_inbtwn:
-                    points.append(point)
-            last_point = curr_point
+                # interpolate points subject to distance threshold. that way if two object
+                # readings are too far, they will be considered separate
+                # 25cm is roughly the with of the car
+                points_lerp = picar.supercover_line(last_point, point, picar.car_width_cm)
+                for point in points_lerp:
+                    scan_points_lerp.append(point)
+            last_point = point
     
         # dedup points and sort
-        points = sorted(list(set(points)))
+        scan_points_lerp = sorted(list(set(scan_points_lerp)))
 
-        picar.logger.info(f"Current location: {picar.current_loc}. Potential objects just mapped: {points}")
+        picar.logger.info(f"Current location: {picar.current_loc}. Object points interpolated: {scan_points_lerp}")
 
         # mark the objects on the map
-        for point in points:
+        for point in scan_points_lerp:
             global_map.mark_object(point)
         
         # mark points in either direction direction along the a-xis so the car
         # has room to move around the object, otherwise the A* algo will just
         # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
         all_buff_points = []
-        if len(points) > 0:
-            radius = 2
+        if len(scan_points_lerp) > 0:
+            radius = 1
             # mark buffers around the points
-            for point in points:
+            for point in scan_points_lerp:
                 buff_points = picar.within_radius(point, radius)
                 for buff_point in buff_points:
                     if buff_point != picar.current_loc:
@@ -76,51 +97,59 @@ def main():
                             all_buff_points.append(buff_point)
 
         all_buff_points = sorted(list(set(all_buff_points)))
+        
+        # mark car's location (to be removed soon)
+        global_map.maze[picar.current_loc.x,picar.current_loc.y] = 4
 
         picar.logger.info(f"The following buffer points were marked: {all_buff_points}")
 
         picar.logger.info(f"Total obstacles now marked on the map: {global_map.maze.sum()}")
-        np.savetxt(f"saved_maps/global_map_{int(global_map.maze.sum())}.txt",global_map.maze,fmt="%d")
+        picar.logger.info(f"Current map around car: \n \
+                {global_map.maze[picar.current_loc.x-5:picar.current_loc.x+6, picar.current_loc.y-5:picar.current_loc.y+6]}")    
+
+        # mark the car's location back to 0
+        global_map.maze[picar.current_loc.x,picar.current_loc.y] = 0
 
         # recompute the path with A* now that obstacles are marked
         picar.logger.info("Attempting to recompute new A* path.")
         path = astar(array = global_map, start=local_start, end=global_end)
         picar.logger.info(f"Recomputed path with A*: {path}")
-    
-        # next point in the path should be the point reachable by not turning
-        local_end = path[-1] # default value is last point in the path
+        
+        # figure out the farthest next point after the local_start the car does not
+        # have to make a turn, the local_end
+        local_end = global_end
         for point in path:
-            if local_start == point:
+            if point == local_start:
                 continue
-            turn_angle = picar.calc_angle_btwn(local_start, point) - Direction[picar.direction].value
-            if turn_angle != 0:
-                local_end = Coordinate(point.x,point.y)
+            angle = picar.calc_angle_btwn(local_start, point)
+            angle_45 = round(angle/45)*45
+            # only bother if the angle is close enough to 45 degrees
+            if abs(angle_45) >= 45:
+                local_end = point
                 break
-
-        picar.logger.info(f"Local start : {local_start}")
-        picar.logger.info(f"Local end : {local_end}")
-        # don't try to navigate to car's current location
-        if local_start == local_end:
-            picar.logger.info("Current car position is the same as next destination. Continuing along path.")
-            continue
         
-        # navigate to the current coordindate
-        angle_btwn = picar.calc_angle_btwn(local_start, local_end)
+        picar.logger.info(f"The farthest point without turning more than 45 dgrees is: {local_end}")
+    
+        # calculate turn angle adjusting for the car's current direction
         car_direction = Direction[picar.direction].value
-        picar.logger.info(f"The angle between the points assuming 0 degree direction: {angle_btwn}. Car's current angle direction: {car_direction}.")
-        turn_data = picar.get_turn_data(angle_btwn)
+        picar.logger.info(f"The angle between the points at 0 degree direction: {round(angle,2)}. Rounded to nearest 45: {round(angle_45,2)}. Car's current angle direction: {car_direction}.")
+        turn_data = picar.get_turn_data(angle_45)
         
-        # turn the car if needed
+    
+        # turn the car if needed to face the global destination
         if turn_data.get("turn_direction") == "left":
             picar.turn_left(turn_data.get("seconds"),turn_data.get("angle"))
         if turn_data.get("turn_direction") == "right":
             picar.turn_right(turn_data.get("seconds"),turn_data.get("angle"))
+        
 
         # get distance between coordinates and seconds to move based on ucrrent power
         movement_data = picar.get_movement_data(local_start, local_end)
 
         # move the car forward after turning
         picar.move_forward(movement_data.get("distance"), movement_data.get("seconds"))
+
+        cycle += 1
        
         
             

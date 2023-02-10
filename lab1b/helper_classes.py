@@ -77,3 +77,6 @@ class Direction(Enum):
     southwest = 135
     west = 90
     northwest = 45
+
+if __name__ == "__main__":
+    pass
