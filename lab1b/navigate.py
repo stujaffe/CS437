@@ -64,11 +64,10 @@ class PiCar(object):
     
     # get the turn direction (left/right) and how long to engage the turn
     def get_turn_data(self, angle_btwn: float) -> dict:
-        # get angle associated with current direction N/W/E/S
-        angle_direction = Direction[self.direction].value
+        
         # get the angle the car needs to turn
-        # e.g. for a -90 degree angle between coordindates and the car is going southwest, angle_turn = -90 - 135 = -225
-        angle_turn = angle_btwn - angle_direction
+        angle_turn = angle_btwn - Direction[self.direction].value
+        angle_turn = round(angle_turn/45)*45
         
         # if the value of angle_turn is negative, the car turns right. if positive, the car turns left.
         # this is based on how we oriented the angles and directions

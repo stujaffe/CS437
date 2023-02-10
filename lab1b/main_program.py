@@ -122,9 +122,10 @@ def main():
             if point == local_start:
                 continue
             angle = picar.calc_angle_btwn(local_start, point)
-            angle_45 = round(angle/45)*45
-            # only bother if the angle is close enough to 45 degrees
-            if abs(angle_45) >= 45:
+            angle_adj = angle - Direction[picar.direction].value 
+            angle_adj_45 = round(angle_adj/45)*45
+            # take the closest point that requires at least a 45 degree turn taking into account the car's direction
+            if abs(angle_adj_45) >= 45:
                 local_end = point
                 break
         
@@ -132,8 +133,8 @@ def main():
     
         # calculate turn angle adjusting for the car's current direction
         car_direction = Direction[picar.direction].value
-        picar.logger.info(f"The angle between the points at 0 degree direction: {round(angle,2)}. Rounded to nearest 45: {round(angle_45,2)}. Car's current angle direction: {car_direction}.")
-        turn_data = picar.get_turn_data(angle_45)
+        picar.logger.info(f"The angle between the points at 0 degree direction: {round(angle,2)}. Car's current angle direction: {car_direction}.")
+        turn_data = picar.get_turn_data(angle)
         
     
         # turn the car if needed to face the global destination
