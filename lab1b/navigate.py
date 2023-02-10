@@ -38,6 +38,7 @@ class PiCar(object):
         self.threshold = threshold
         self.distance_to_obj = -2
         self.car_width_cm = car_width_cm
+        self.avoid_obstacle_time = None
         self.logger = logging.getLogger()
         logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                 datefmt='%Y-%m-%d:%H:%M:%S',
@@ -257,20 +258,22 @@ class PiCar(object):
     def move_forward(self, distance, seconds):
         self.logger.info(f"Moving FORWARD at {self.power} power for {round(seconds,2)}sec for a distance of {round(distance,2)}cm")
         # move the car forwards for a number of seconds
-        stop_time = time.time() + seconds
+        start_time = curr_time = time.time()
+        stop_time = start_time + seconds
         # while the car is moving forward for the given number of seconds, scan the surroundings for object detection
         # and if an object is found via self.scan_sweep_avoid(), a -999 return value results, so avoid object and break the loop..
-        while time.time() < stop_time:
+        while curr_time < stop_time:
             fc.forward(self.power)
             self.scan_sweep_avoid()
-            if self.distance_to_obj > -2 and self.distance_to_obj <= self.threshold:
+            if self.distance_to_obj > 0 and self.distance_to_obj <= self.threshold:
                 self.avoid_object()
                 curr_time = time.time()
                 # need a new distance since the car didn't travel the whole original distance
-                move_time = stop_time - curr_time
-                distance = max(0,(move_time/seconds*distance))
+                move_time = curr_time - start_time
+                distance = (move_time/seconds)*distance
                 self.logger.info(f"Stopped early due to object detection, traveled {round(distance,2)}cm in {round(move_time,2)}sec.")
                 break
+            curr_time = time.time()
         fc.stop()
 
         # save the current location
