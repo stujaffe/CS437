@@ -12,7 +12,7 @@ def main():
     global_map = Maze(3000,3000)
     
     global_start = Coordinate(0,0)
-    global_end = Coordinate(100,30)
+    global_end = Coordinate(150,30)
     
     # initialize the car
     picar = PiCar(start_loc=global_start, goal_loc=global_end)
@@ -23,11 +23,6 @@ def main():
     # navigate the car along the path
     while True:
 
-        # clear the map if every 2nd cycle
-        if cycle > 0 and cycle % 2 == 0:
-            global_map.maze.fill(0)
-            picar.logger.info(f"Cleared the global map. Number of marked objects now: {global_map.maze.sum()}")
-        
         path = None
         # starting point is the car's current location
         local_start = picar.current_loc
@@ -43,6 +38,11 @@ def main():
             picar.logger.info(f"Congrats! The car reached the end of the path, it's current location is {local_start} versus the goal of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             picar.stop_car()
             break
+        
+        # clear the map
+        global_map.maze.fill(0)
+        picar.logger.info(f"Cleared the global map. Number of marked objects now: {global_map.maze.sum()}")
+        
         
         # scan for obstacles and build a map
         scan = picar.scan_sweep_map()
@@ -109,12 +109,26 @@ def main():
 
         # mark the car's location back to 0
         global_map.maze[picar.current_loc.x,picar.current_loc.y] = 0
-
+        
+        # get the point that is past a cluster of objects X units away from the farthest 
+        # object while being as close as possible to the end point
+        
+        # first get the map subset where the cluster of ones should be (i.e. in front of the car
+        # all the way to the global end)
+        cluster_coordinates = np.where(global_map.maze == 1)
+        # now get that point
+        clearance_point = picar.find_farthest_point(global_map.maze, cluster_coordinates, current_loc, global_end, 5)
+        picar.logger.info(f"The clearance point past the object markers is: {clearance_point}")
+        
+        
         # recompute the path with A* now that obstacles are marked
         picar.logger.info("Attempting to recompute new A* path.")
-        path = astar(array = global_map, start=local_start, end=global_end)
+        path = astar(array = global_map, start=local_start, end=clearance_point)
         picar.logger.info(f"Recomputed path with A*: {path}")
         
+        for point in path:
+        
+        """
         # figure out the farthest next point after the local_start the car does not
         # have to make a turn, the local_end
         local_end = global_end
@@ -130,6 +144,7 @@ def main():
                 break
         
         picar.logger.info(f"The farthest point without turning more than 45 dgrees is: {local_end}")
+        """
     
         # calculate turn angle adjusting for the car's current direction
         car_direction = Direction[picar.direction].value
@@ -150,7 +165,6 @@ def main():
         # move the car forward after turning
         picar.move_forward(movement_data.get("distance"), movement_data.get("seconds"))
 
-        cycle += 1
        
         
             

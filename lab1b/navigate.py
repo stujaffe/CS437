@@ -327,6 +327,56 @@ class PiCar(object):
     
     def stop_car(self):
         fc.stop()
+    
+    # find the point that is X distance units away from the farthest 1
+    # from the start point and is also the closest to the end
+    @staticmethod
+    def find_farthest_point(arr, cluster_coordinates, start, end, distance):
+        
+        # initialize the start and end points from the Coordinates
+        start = np.array([start.x,start.y])
+        end = np.array([end.x, end.y])
+        
+        # turn cluster coordinates into a list
+        cc_x = list(cluster_coordinates[0])
+        cc_y = list(cluster_coordinates[1])
+        # make cluster coordinates into a list
+        cluster_coordinates = [[cc_x[i],cc_y[i]] for i in range(len(cc_x))]
+        
+        # find the farthest point in the cluster from the start point
+        farthest_point = None
+        max_distance = 0
+        for coord in cluster_coordinates:
+            curr_distance = np.linalg.norm(np.array(coord) - start)
+            if curr_distance > max_distance:
+                max_distance = curr_distance
+                farthest_point = coord
+        
+        # find the closest point in the cluster to the end point
+        closest_point = None
+        min_distance = math.inf
+        for coord in cluster_coordinates:
+            curr_distance = np.linalg.norm(np.array(coord) - end)
+            if curr_distance < min_distance:
+                min_distance = curr_distance
+                closest_point = coord
+        
+        # find the point that is at least `distance` units away from the closest point to the end
+        point = closest_point + np.array([distance, 0])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([-distance, 0])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([0, distance])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([0, -distance])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        
+        # return the farthest point if a point couldn't be found
+        return farthest_point
 
 
 if __name__ == "__main__":
@@ -334,19 +384,90 @@ if __name__ == "__main__":
     from astar import astar
 
     start = Coordinate(0,0)
-    end = Coordinate(50,50)
+    end = Coordinate(100,50)
 
     picar = PiCar(start_loc=start, goal_loc=end)
     
-    global_map = Maze(100,100)
+    global_map = Maze(3000,3000)
     
-    coord1 = Coordinate(0,0)
-    coord2 = Coordinate(0,100)
+    # try populating a test object on the map
     
-    points = picar.supercover_line(coord1,coord2)
-    print(points)
+    #global_map.maze[71,25:30].fill(1)
+    #global_map.maze[72,25:32].fill(1)
+    #global_map.maze[73,25:32].fill(1)
+    #global_map.maze[74,26:34].fill(1)
+    #global_map.maze[75,27:34].fill(1)
+    #global_map.maze[76,29:34].fill(1)
     
-    print(picar.within_radius(Coordinate(10,10),1))
+    current_loc = Coordinate(71,30)
+    
+    path = astar(global_map, current_loc, end)
+    
+    print("Path with obstacles:")
+    print(path)
+    
+    # find the point that is X distance units away from the farthest 1
+    # from the start point and is also the closest to the end
+    def find_farthest_point(arr, cluster_coordinates, start, end, distance):
+        
+        # initialize the start and end points from the Coordinates
+        start = np.array([start.x,start.y])
+        end = np.array([end.x, end.y])
+        
+        # turn cluster coordinates into a list
+        cc_x = list(cluster_coordinates[0])
+        cc_y = list(cluster_coordinates[1])
+        # make cluster coordinates into a list
+        cluster_coordinates = [[cc_x[i],cc_y[i]] for i in range(len(cc_x))]
+        
+        # if there are no object markers, return the end point
+        if len(cluster_coordinates) == 0:
+            return end
+        
+        # find the farthest point in the cluster from the start point
+        farthest_point = None
+        max_distance = 0
+        for coord in cluster_coordinates:
+            curr_distance = np.linalg.norm(np.array(coord) - start)
+            if curr_distance > max_distance:
+                max_distance = curr_distance
+                farthest_point = coord
+        
+        # find the closest point in the cluster to the end point
+        closest_point = None
+        min_distance = math.inf
+        for coord in cluster_coordinates:
+            curr_distance = np.linalg.norm(np.array(coord) - end)
+            if curr_distance < min_distance:
+                min_distance = curr_distance
+                closest_point = coord
+        
+        # find the point that is at least `distance` units away from the closest point to the end
+        point = closest_point + np.array([distance, 0])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([-distance, 0])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([0, distance])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([0, -distance])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        
+        # return the farthest point if a point couldn't be found
+        return farthest_point
+    
+    cluster_coordinates = np.where(global_map.maze == 1)
+    
+    farthest_point = find_farthest_point(global_map.maze,cluster_coordinates,current_loc,end,5)
+    
+    print(farthest_point)
+    
+    
+    
+    
     
     
     
