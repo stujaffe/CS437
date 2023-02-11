@@ -127,7 +127,7 @@ class PiCar(object):
         return self.speed
 
    
-   # scan the area in front of the car for obstacle avoidance purposes
+    # scan the area in front of the car for obstacle avoidance purposes
     def scan_sweep_avoid(self):
         self.current_angle += self.step
         if self.current_angle >= self.max_angle:
@@ -141,6 +141,15 @@ class PiCar(object):
         self.distance_to_obj = fc.us.get_distance()
         time.sleep(0.02)
 
+    # is the point within the boundaries of the map
+    # note this only works when the car is stationary and knows its current location
+    @ staticmethod
+    def is_point_in_map(coord1: Coordinate, x_lower: int, x_upper: int, y_lower: int, y_upper: int) -> bool:
+        result = False
+        if coord1.x >= x_lower and coord1.x < x_upper and coord1.y >= y_lower and coord1.y < y_upper:
+            result = True
+        
+        return result
 
     # scan the area in front of the car for mapping purposes
     # you can set a max distance (cm) for which the scan will return (distance, angle)
@@ -169,7 +178,7 @@ class PiCar(object):
         return scan_result
 
     # convert angle and distance into caretisan coordinates
-    def get_cartesian(self, angle: float, distance: float) -> Coordinate:
+    def get_cartesian(self, angle: float, distance: float, adjust_for_car: bool = True) -> Coordinate:
         # we need to adjust the angle based on the direction of the car
         # if the car is going north (0 degrees) then the angle from the ultrasonic
         # sensor does not need to be adjusted. However, if the car is, for example,
@@ -187,7 +196,10 @@ class PiCar(object):
         # relative coordinate
         coord_rel = Coordinate(x, y)
         # absolute coorindate, taking into account where the car is
-        coord_abs = Coordinate(self.current_loc.x + x, self.current_loc.y + y)
+        if adjust_for_car:
+            coord_abs = Coordinate(self.current_loc.x + x, self.current_loc.y + y)
+        else:
+            coord_abs = coord_rel
 
         return coord_abs
 
@@ -214,7 +226,7 @@ class PiCar(object):
     # all the coordinates in between
     # from this website: https://www.redblobgames.com/grids/line-drawing.html
     @staticmethod
-    def supercover_line(coord1: Coordinate, coord2: Coordinate, dist_threshold: int = 15, 
+    def supercover_line(coord1: Coordinate, coord2: Coordinate, dist_threshold: int, 
     blocked_coords: List[Coordinate] = []) -> List[Coordinate]:
         
         # make sure the points are close enough before interpolating
@@ -364,19 +376,19 @@ class PiCar(object):
         # find the point that is at least `distance` units away from the closest point to the end
         point = closest_point + np.array([distance, 0])
         if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
-            return point.astype(int)
+            return Coordinate(point[0],point[1])
         point = closest_point + np.array([-distance, 0])
         if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
-            return point.astype(int)
+            return Coordinate(point[0],point[1])
         point = closest_point + np.array([0, distance])
         if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
-            return point.astype(int)
+            return Coordinate(point[0],point[1])
         point = closest_point + np.array([0, -distance])
         if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
-            return point.astype(int)
+            return Coordinate(point[0],point[1])
         
         # return the farthest point if a point couldn't be found
-        return farthest_point
+        return Coorindate(farthest_point[0],farthest_point[1])
 
 
 if __name__ == "__main__":
