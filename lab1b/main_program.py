@@ -44,7 +44,7 @@ def main():
             picar.logger.info(f"Congrats! The car has reached the destination point of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             picar.stop_car()
             break
-        if ((local_start.x - global_end.x)**2 + (local_start.y - global_end.y)**2)**0.5 < 4:
+        if picar.calc_euclid_dist(local_start, global_end) < 4:
             picar.logger.info(f"Congrats! The car has reached {local_start}, pretty close to its destination point of {global_end}. Distance traveled: {round(picar.distance_traveled,2)}")
             break
         if path is not None and len(path) == 1:
@@ -100,22 +100,30 @@ def main():
             scan_points_lerp = sorted(list(set(scan_points_lerp)))
 
             picar.logger.info(f"Current location: {picar.current_loc}. Object points interpolated: {scan_points_lerp}")
-
+            
+            # get the coorindates "behind" the car so we don't mark objects that are behind
+            # the car on the map, causing issues
+            coordinates_behind = picar.get_coordinates_behind(arr = global_map, position = local_start,
+                angle = Direction[picar.direction].value, area_dim = (200,200),
+                x_lower=x_lower, x_upper=x_upper,
+                y_lower=y_lower, y_upper=y_upper)
+            
             # mark the objects on the map
             for point in scan_points_lerp:
-                global_map.mark_object(coord1=point, x_lower=x_lower, x_upper=x_upper, y_lower=y_lower, y_upper=y_upper)
+                if point not in coordinates_behind:
+                    global_map.mark_object(coord1=point, x_lower=x_lower, x_upper=x_upper, y_lower=y_lower, y_upper=y_upper)
         
             # mark points in either direction direction along the a-xis so the car
             # has room to move around the object, otherwise the A* algo will just
             # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
             all_buff_points = []
             if len(scan_points_lerp) > 0:
-                radius = 1
+                radius = 4
                 # mark buffers around the points
                 for point in scan_points_lerp:
                     buff_points = picar.within_radius(point, radius)
                     for buff_point in buff_points:
-                        if buff_point != picar.current_loc:
+                        if buff_point != local_start and buff_point not in coordinates_behind:
                             global_map.mark_object(coord1=buff_point, x_lower=x_lower, x_upper=x_upper, y_lower=y_lower, y_upper=y_upper)
                             # for logging purposes, make sure the point was actually marked
                             if global_map[buff_point.x,buff_point.y] == 1:
@@ -137,12 +145,17 @@ def main():
         
             # first get the map subset where the cluster of ones should be (i.e. in front of the car
             # all the way to the global end)
-            cluster_coordinates = np.where(global_map.maze == 1)
+            #cluster_coordinates = np.where(global_map.maze == 1)
             # now get that clearance point. if there are no obstacles marked, this will be the same
             # as the global end point
-            clearance_point = picar.find_farthest_point(global_map.maze, cluster_coordinates, local_start, global_end, 5)
-            picar.logger.info(f"The clearance point past the object markers is: {clearance_point}")
-        
+            #picar.logger.info("Computing clearance point.")
+            clearance_point = global_end #picar.find_farthest_point(global_map.maze, cluster_coordinates, local_start, global_end, 5)
+            #picar.logger.info(f"The clearance point past the object markers is: {clearance_point}")
+
+            # if the global end is closer than the clearance point, just navigate to the global end instead
+            if picar.calc_euclid_dist(local_start, clearance_point) >= picar.calc_euclid_dist(local_start, global_end):
+                picar.logger.info(f"The clearance point is farther from the car's location than the end point. Navigating to the end point.")
+                clearance_point = global_end
         
             # recompute the path with A* now that obstacles are marked
             picar.logger.info("Attempting to recompute new A* path.")
@@ -177,7 +190,7 @@ def main():
                 movement_data = picar.get_movement_data(prev_step, curr_step)
 
                 # move the car forward after turning
-                picar.move_forward(movement_data.get("distance"), movement_data.get("seconds"))
+                picar.move_forward(distance=movement_data.get("distance"), seconds=movement_data.get("seconds"), scan=False)
             
         # if there are no objects to be mapped, then continue onward to the global end
         # while continuing to scan for objects in order to avoid (not mapping)
@@ -229,7 +242,7 @@ def main():
             movement_data = picar.get_movement_data(local_start, local_end)
 
             # move the car forward after turning
-            picar.move_forward(movement_data.get("distance"), movement_data.get("seconds"))
+            picar.move_forward(distance=movement_data.get("distance"), seconds=movement_data.get("seconds"), scan=True)
     
             
 if __name__ == "__main__":

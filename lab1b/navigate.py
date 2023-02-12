@@ -20,8 +20,9 @@ class PiCar(object):
         power: int = 10,
         direction: str = Direction.north.name,
         angle_range: int = 140,
-        threshold: int = 10, # object avoidance clearance in cm
+        threshold: int = 15, # object avoidance clearance in cm
         car_width_cm: int = 25,
+        us_offset: int = 8 # offset for ultasonic distance readings in cm, the larger the more buffer
     ) -> None:
         self.start_loc = start_loc
         self.goal_loc = goal_loc
@@ -39,6 +40,7 @@ class PiCar(object):
         self.distance_to_obj = -2
         self.car_width_cm = car_width_cm
         self.avoid_obstacle_time = None
+        self.us_offset = us_offset
         self.logger = logging.getLogger()
         logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                 datefmt='%Y-%m-%d:%H:%M:%S',
@@ -101,11 +103,17 @@ class PiCar(object):
         turn_data = {"turn_direction":turn_command, "seconds":turn_sec, "angle":angle_turn}
         
         return turn_data
+    
+    @staticmethod
+    def calc_euclid_dist(coord1: Coordinate, coord2: Coordinate) -> float:
+        distance = ((coord1.x - coord2.x)**2 + (coord1.y - coord2.y)**2)**0.5
+
+        return distance
 
     def get_movement_data(self, coord1: Coordinate, coord2: Coordinate) -> dict:
 
         # euclidean distance
-        distance = ((coord1.x - coord2.x)**2 + (coord1.y - coord2.y)**2)**0.5
+        distance = self.calc_euclid_dist(coord1, coord2)
 
         # calculate the seconds to move
         seconds = distance / self.get_speed()
@@ -138,7 +146,7 @@ class PiCar(object):
             self.step = abs(self.step)
 
         fc.servo.set_angle(self.current_angle)
-        self.distance_to_obj = fc.us.get_distance()
+        self.distance_to_obj = fc.us.get_distance() - self.us_offset
         time.sleep(0.02)
 
     # is the point within the boundaries of the map
@@ -171,7 +179,7 @@ class PiCar(object):
             fc.servo.set_angle(angle)
             self.current_angle = angle
             time.sleep(0.04)
-            distance_to_obj = fc.us.get_distance()
+            distance_to_obj = fc.us.get_distance() - self.us_offset
             if distance_to_obj > -2 and distance_to_obj <= max_dist:
                 scan_result.append((distance_to_obj, angle))
         # returns a list of tuples (distance cm, angle degrees)
@@ -222,6 +230,34 @@ class PiCar(object):
                 points.append(Coordinate(x2,y2))
         return points
     
+    # get all the points "behind" the car so that an obstacles marked as 1, especially via buffer points,
+    # are not behind the car, causing erroroneous maps
+    # the area_dim (x,y) arugment will determine which part of the sub for which we want the behind coordinates
+    # otherwise, this calculation can take a long time
+    @staticmethod
+    def get_coordinates_behind(arr: Maze, position: Coordinate, angle: float, area_dim: tuple,
+                            x_lower: int, x_upper: int, y_lower: int, y_upper: int):
+        
+        arr_sub = arr.maze[min(position.x-area_dim[0],x_lower):max(position.x+area_dim[0],x_upper),
+                    min(position.y-area_dim[1],y_lower):max(position.y+area_dim[1],y_upper)]
+        angle = angle - 90
+        angle = np.radians(-angle)
+        x, y = position.x, position.y
+        x = int(x)
+        y = int(y)
+        indices = np.where(arr_sub == 0)
+        x_indices = indices[0]
+        y_indices = indices[1]
+        coords = np.stack([x_indices, y_indices], axis=-1)
+        # results in a 2D array with shape (N, 1) where N is the number of zero elements in the maze. 
+        # the result is then used to determine which points are behind the car by checking if the first element of each row is greater than zero
+        behind = (coords - [x, y]) @ np.array([[np.cos(angle)], [-np.sin(angle)]])
+        behind_indices = coords[behind[:, 0] > 0]
+        behind_coordinates = [Coordinate(*coord) for coord in behind_indices]
+        
+        return behind_coordinates
+
+    
     # calculate the points between two coordinates with a supercover line that catches
     # all the coordinates in between
     # from this website: https://www.redblobgames.com/grids/line-drawing.html
@@ -263,10 +299,11 @@ class PiCar(object):
     
     def avoid_object(self):
         object_coord = self.get_cartesian(self.current_angle, self.distance_to_obj)
-        self.logger.info(f"Object {self.distance_to_obj}cm away at an angle of {self.current_angle} degrees at point {object_coord}, within threshold of {self.threshold}cm. Stopping.")
+        self.logger.info(f"Object {round(self.distance_to_obj,2)}cm away at an angle of {self.current_angle} degrees at point {object_coord}, within threshold of {self.threshold}cm. Stopping.")
         fc.stop()
 
-    def move_forward(self, distance, seconds):
+    # scan is a boolean value that denotes whether to scan for objects while moving
+    def move_forward(self, distance: float, seconds: float, scan: bool):
         self.logger.info(f"Moving FORWARD at {self.power} power for {round(seconds,2)}sec for a distance of {round(distance,2)}cm")
         # move the car forwards for a number of seconds
         start_time = curr_time = time.time()
@@ -275,15 +312,16 @@ class PiCar(object):
         # and if an object is found via self.scan_sweep_avoid(), a -999 return value results, so avoid object and break the loop..
         while curr_time < stop_time:
             fc.forward(self.power)
-            self.scan_sweep_avoid()
-            if self.distance_to_obj > 0 and self.distance_to_obj <= self.threshold:
-                self.avoid_object()
-                curr_time = time.time()
-                # need a new distance since the car didn't travel the whole original distance
-                move_time = curr_time - start_time
-                distance = (move_time/seconds)*distance
-                self.logger.info(f"Stopped early due to object detection, traveled {round(distance,2)}cm in {round(move_time,2)}sec.")
-                break
+            if scan:
+                self.scan_sweep_avoid()
+                if self.distance_to_obj > 0 and self.distance_to_obj <= self.threshold:
+                    self.avoid_object()
+                    curr_time = time.time()
+                    # need a new distance since the car didn't travel the whole original distance
+                    move_time = curr_time - start_time
+                    distance = (move_time/seconds)*distance
+                    self.logger.info(f"Stopped early due to object detection, traveled {round(distance,2)}cm in {round(move_time,2)}sec.")
+                    break
             curr_time = time.time()
         fc.stop()
 
@@ -342,8 +380,7 @@ class PiCar(object):
     
     # find the point that is X distance units away from the farthest 1
     # from the start point and is also the closest to the end
-    @staticmethod
-    def find_farthest_point(arr, cluster_coordinates, start, end, distance):
+    def find_farthest_point(self, arr, cluster_coordinates, start, end, distance):
         
         # initialize the start and end points from the Coordinates
         start = np.array([start.x,start.y])
@@ -388,6 +425,7 @@ class PiCar(object):
             return Coordinate(point[0],point[1])
         
         # return the farthest point if a point couldn't be found
+        self.logger.info("Could not find a clearance point so returning the farthest point in the cluser.")
         return Coorindate(farthest_point[0],farthest_point[1])
 
 
