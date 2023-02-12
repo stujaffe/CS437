@@ -381,11 +381,11 @@ class PiCar(object):
     # given a location and object coordiantes, find the "farthest" object coordindate
     # from the given location
     @staticmethod
-    def find_farthest_point(location: Coordinate, object_coordinates: List[Coordinate]):
+    def find_farthest_point(location: Coordinate, object_coordinates):
         farthest_point = None
         max_distance = 0
         for coord in object_coordinates:
-            curr_distance = np.linalg.norm(np.array([coord.x,coord.y]) - np.array([location.x,location.y]))
+            curr_distance = np.linalg.norm(np.array([coord.x, coord.y]) - np.array([location.x,location.y]))
             if curr_distance > max_distance:
                 max_distance = curr_distance
                 farthest_point = coord

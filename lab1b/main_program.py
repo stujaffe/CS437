@@ -146,7 +146,9 @@ def main():
         
             # first get the map subset where the cluster of ones should be (i.e. in front of the car
             # all the way to the global end)
-            object_coordinates = np.where(global_map.maze == 1)
+            object_coordinates = []
+            object_coordinates.extend(scan_points_lerp)
+            object_coordinates.extend(all_buff_points)
             # find the farthest object coordinate
             farthest_obj_point = picar.find_farthest_point(local_start, object_coordinates)
             
