@@ -146,25 +146,20 @@ def main():
         
             # first get the map subset where the cluster of ones should be (i.e. in front of the car
             # all the way to the global end)
-            #cluster_coordinates = np.where(global_map.maze == 1)
-            # now get that clearance point. if there are no obstacles marked, this will be the same
-            # as the global end point
-            #picar.logger.info("Computing clearance point...")
-            clearance_point = global_end #picar.find_farthest_point(global_map.maze, cluster_coordinates, local_start, global_end, 5)
-            #picar.logger.info(f"The clearance point past the object markers is: {clearance_point}")
-
-            # if the global end is closer than the clearance point, just navigate to the global end instead
-            if picar.calc_euclid_dist(local_start, clearance_point) >= picar.calc_euclid_dist(local_start, global_end):
-                picar.logger.info(f"The clearance point is farther from the car's location than the end point. Navigating to the end point.")
-                clearance_point = global_end
+            object_coordinates = []
+            object_coordinates.extend(scan_points_lerp)
+            object_coordinates.extend(all_buff_points)
+            # find the farthest object coordinate
+            farthest_obj_point = picar.find_farthest_point(local_start, object_coordinates)
+            
+            picar.logger.info(f"The farthest object point is: {farthest_obj_point}. Once passing that point, the car will stop and scan for objects again.")
         
             # recompute the path with A* now that obstacles are marked
             picar.logger.info("Attempting to recompute new A* path...")
-            path = astar(array = global_map, start=local_start, end=clearance_point)
+            path = astar(array = global_map, start=local_start, end=global_end)
             picar.logger.info(f"Recomputed path with A*: {path}")
             
             # navigate the car around the object to the clearance point with the A* path
-        
             prev_step = None
             for curr_step in path:
                 
@@ -172,6 +167,12 @@ def main():
                 if curr_step == local_start:
                     prev_step = curr_step
                     continue
+                
+                # if car has passed farthest object, exit the path loop early so the car can scan again
+                has_passed_object = picar.has_passed_object(start=local_start, end=global_end, object_pos=farthest_obj_point, buffer_dist=6)
+                if has_passed_object:
+                    picar.logger.info(f"Car has passed farthest object point of {farthest_obj_point}. Stopping to scan again.")
+                    break
                 
                 # calculate turn angle adjusting for the car's current direction
                 angle_btwn_points = picar.calc_angle_btwn(prev_step, curr_step)

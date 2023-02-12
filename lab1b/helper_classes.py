@@ -19,6 +19,10 @@ class Coordinate(object):
         new_point = Coordinate(self.x + other.x, self.y + other.y)
         return new_point
     
+    def __sub__(self, other):
+        new_point = Coordinate(self.x - other.x, self.y - other.y)
+        return new_point
+    
     def __str__(self):
         return f"(x:{self.x},y:{self.y})"
     
