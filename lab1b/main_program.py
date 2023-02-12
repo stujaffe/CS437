@@ -22,7 +22,7 @@ def main():
     y_upper = 3000
     
     global_start = Coordinate(0,0)
-    global_end = Coordinate(100,100)
+    global_end = Coordinate(150,100)
     
     # initialize the car
     picar = PiCar(start_loc=global_start, goal_loc=global_end)
@@ -60,6 +60,14 @@ def main():
         # while the car is stopped, scan the surroundings for obstacles
         scan = picar.scan_sweep_map()
         
+        # get the coorindates "behind" the car so we don't mark objects that are behind
+            # the car on the map, causing issues
+        picar.logger.info("Computing coordinates behind the car...")
+        coordinates_behind = picar.get_coordinates_behind(arr = global_map, position = local_start,
+            angle = Direction[picar.direction].value, area_dim = (100,100),
+            x_lower=x_lower, x_upper=x_upper,
+            y_lower=y_lower, y_upper=y_upper)
+    
         # get the cartesian coordinates from the ultrasonic sensor readings
         # the get_cartesian() function will adjust for the car's location by default, but
         # you can adjust that parameter
@@ -67,7 +75,7 @@ def main():
         for item in scan:
             curr_point = picar.get_cartesian(angle=item[1], distance=item[0])
             is_in_map = picar.is_point_in_map(curr_point, x_lower=x_lower, x_upper=x_upper, y_lower=y_lower, y_upper=y_upper)
-            if is_in_map:
+            if is_in_map and curr_point not in coordinates_behind:
                 scan_points.append(curr_point)
         
         # if the car detects any objects, then navigate to a "clearance point"
@@ -93,32 +101,25 @@ def main():
                     # 25cm is roughly the with of the car
                     points_lerp = picar.supercover_line(prev_point, curr_point, picar.car_width_cm)
                     for point in points_lerp:
-                        scan_points_lerp.append(point)
+                        if point not in coordinates_behind:
+                            scan_points_lerp.append(point)
                 prev_point = curr_point
     
             # dedup points and sort
             scan_points_lerp = sorted(list(set(scan_points_lerp)))
 
             picar.logger.info(f"Current location: {picar.current_loc}. Object points interpolated: {scan_points_lerp}")
-            
-            # get the coorindates "behind" the car so we don't mark objects that are behind
-            # the car on the map, causing issues
-            coordinates_behind = picar.get_coordinates_behind(arr = global_map, position = local_start,
-                angle = Direction[picar.direction].value, area_dim = (200,200),
-                x_lower=x_lower, x_upper=x_upper,
-                y_lower=y_lower, y_upper=y_upper)
-            
+
             # mark the objects on the map
             for point in scan_points_lerp:
-                if point not in coordinates_behind:
-                    global_map.mark_object(coord1=point, x_lower=x_lower, x_upper=x_upper, y_lower=y_lower, y_upper=y_upper)
+                global_map.mark_object(coord1=point, x_lower=x_lower, x_upper=x_upper, y_lower=y_lower, y_upper=y_upper)
         
             # mark points in either direction direction along the a-xis so the car
             # has room to move around the object, otherwise the A* algo will just
             # alter the path slightly. e.g. from (1,2) to (2,2), but (2,2) is also blocked.
             all_buff_points = []
             if len(scan_points_lerp) > 0:
-                radius = 4
+                radius = 2
                 # mark buffers around the points
                 for point in scan_points_lerp:
                     buff_points = picar.within_radius(point, radius)
@@ -148,7 +149,7 @@ def main():
             #cluster_coordinates = np.where(global_map.maze == 1)
             # now get that clearance point. if there are no obstacles marked, this will be the same
             # as the global end point
-            #picar.logger.info("Computing clearance point.")
+            #picar.logger.info("Computing clearance point...")
             clearance_point = global_end #picar.find_farthest_point(global_map.maze, cluster_coordinates, local_start, global_end, 5)
             #picar.logger.info(f"The clearance point past the object markers is: {clearance_point}")
 
@@ -158,7 +159,7 @@ def main():
                 clearance_point = global_end
         
             # recompute the path with A* now that obstacles are marked
-            picar.logger.info("Attempting to recompute new A* path.")
+            picar.logger.info("Attempting to recompute new A* path...")
             path = astar(array = global_map, start=local_start, end=clearance_point)
             picar.logger.info(f"Recomputed path with A*: {path}")
             
