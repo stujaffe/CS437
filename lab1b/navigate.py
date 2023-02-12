@@ -20,8 +20,9 @@ class PiCar(object):
         power: int = 10,
         direction: str = Direction.north.name,
         angle_range: int = 140,
-        threshold: int = 10, # object avoidance clearance in cm
+        threshold: int = 15, # object avoidance clearance in cm
         car_width_cm: int = 25,
+        us_offset: int = 8 # offset for ultasonic distance readings in cm, the larger the more buffer
     ) -> None:
         self.start_loc = start_loc
         self.goal_loc = goal_loc
@@ -39,6 +40,7 @@ class PiCar(object):
         self.distance_to_obj = -2
         self.car_width_cm = car_width_cm
         self.avoid_obstacle_time = None
+        self.us_offset = us_offset
         self.logger = logging.getLogger()
         logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                 datefmt='%Y-%m-%d:%H:%M:%S',
@@ -101,11 +103,17 @@ class PiCar(object):
         turn_data = {"turn_direction":turn_command, "seconds":turn_sec, "angle":angle_turn}
         
         return turn_data
+    
+    @staticmethod
+    def calc_euclid_dist(coord1: Coordinate, coord2: Coordinate) -> float:
+        distance = ((coord1.x - coord2.x)**2 + (coord1.y - coord2.y)**2)**0.5
+
+        return distance
 
     def get_movement_data(self, coord1: Coordinate, coord2: Coordinate) -> dict:
 
         # euclidean distance
-        distance = ((coord1.x - coord2.x)**2 + (coord1.y - coord2.y)**2)**0.5
+        distance = self.calc_euclid_dist(coord1, coord2)
 
         # calculate the seconds to move
         seconds = distance / self.get_speed()
@@ -127,7 +135,7 @@ class PiCar(object):
         return self.speed
 
    
-   # scan the area in front of the car for obstacle avoidance purposes
+    # scan the area in front of the car for obstacle avoidance purposes
     def scan_sweep_avoid(self):
         self.current_angle += self.step
         if self.current_angle >= self.max_angle:
@@ -138,9 +146,18 @@ class PiCar(object):
             self.step = abs(self.step)
 
         fc.servo.set_angle(self.current_angle)
-        self.distance_to_obj = fc.us.get_distance()
+        self.distance_to_obj = fc.us.get_distance() - self.us_offset
         time.sleep(0.02)
 
+    # is the point within the boundaries of the map
+    # note this only works when the car is stationary and knows its current location
+    @ staticmethod
+    def is_point_in_map(coord1: Coordinate, x_lower: int, x_upper: int, y_lower: int, y_upper: int) -> bool:
+        result = False
+        if coord1.x >= x_lower and coord1.x < x_upper and coord1.y >= y_lower and coord1.y < y_upper:
+            result = True
+        
+        return result
 
     # scan the area in front of the car for mapping purposes
     # you can set a max distance (cm) for which the scan will return (distance, angle)
@@ -162,14 +179,14 @@ class PiCar(object):
             fc.servo.set_angle(angle)
             self.current_angle = angle
             time.sleep(0.04)
-            distance_to_obj = fc.us.get_distance()
+            distance_to_obj = fc.us.get_distance() - self.us_offset
             if distance_to_obj > -2 and distance_to_obj <= max_dist:
                 scan_result.append((distance_to_obj, angle))
         # returns a list of tuples (distance cm, angle degrees)
         return scan_result
 
     # convert angle and distance into caretisan coordinates
-    def get_cartesian(self, angle: float, distance: float) -> Coordinate:
+    def get_cartesian(self, angle: float, distance: float, adjust_for_car: bool = True) -> Coordinate:
         # we need to adjust the angle based on the direction of the car
         # if the car is going north (0 degrees) then the angle from the ultrasonic
         # sensor does not need to be adjusted. However, if the car is, for example,
@@ -187,7 +204,10 @@ class PiCar(object):
         # relative coordinate
         coord_rel = Coordinate(x, y)
         # absolute coorindate, taking into account where the car is
-        coord_abs = Coordinate(self.current_loc.x + x, self.current_loc.y + y)
+        if adjust_for_car:
+            coord_abs = Coordinate(self.current_loc.x + x, self.current_loc.y + y)
+        else:
+            coord_abs = coord_rel
 
         return coord_abs
 
@@ -210,11 +230,39 @@ class PiCar(object):
                 points.append(Coordinate(x2,y2))
         return points
     
+    # get all the points "behind" the car so that an obstacles marked as 1, especially via buffer points,
+    # are not behind the car, causing erroroneous maps
+    # the area_dim (x,y) arugment will determine which part of the sub for which we want the behind coordinates
+    # otherwise, this calculation can take a long time
+    @staticmethod
+    def get_coordinates_behind(arr: Maze, position: Coordinate, angle: float, area_dim: tuple,
+                            x_lower: int, x_upper: int, y_lower: int, y_upper: int):
+        
+        arr_sub = arr.maze[min(position.x-area_dim[0],x_lower):max(position.x+area_dim[0],x_upper),
+                    min(position.y-area_dim[1],y_lower):max(position.y+area_dim[1],y_upper)]
+        angle = angle - 90
+        angle = np.radians(-angle)
+        x, y = position.x, position.y
+        x = int(x)
+        y = int(y)
+        indices = np.where(arr_sub == 0)
+        x_indices = indices[0]
+        y_indices = indices[1]
+        coords = np.stack([x_indices, y_indices], axis=-1)
+        # results in a 2D array with shape (N, 1) where N is the number of zero elements in the maze. 
+        # the result is then used to determine which points are behind the car by checking if the first element of each row is greater than zero
+        behind = (coords - [x, y]) @ np.array([[np.cos(angle)], [-np.sin(angle)]])
+        behind_indices = coords[behind[:, 0] > 0]
+        behind_coordinates = [Coordinate(*coord) for coord in behind_indices]
+        
+        return behind_coordinates
+
+    
     # calculate the points between two coordinates with a supercover line that catches
     # all the coordinates in between
     # from this website: https://www.redblobgames.com/grids/line-drawing.html
     @staticmethod
-    def supercover_line(coord1: Coordinate, coord2: Coordinate, dist_threshold: int = 15, 
+    def supercover_line(coord1: Coordinate, coord2: Coordinate, dist_threshold: int, 
     blocked_coords: List[Coordinate] = []) -> List[Coordinate]:
         
         # make sure the points are close enough before interpolating
@@ -251,10 +299,11 @@ class PiCar(object):
     
     def avoid_object(self):
         object_coord = self.get_cartesian(self.current_angle, self.distance_to_obj)
-        self.logger.info(f"Object {self.distance_to_obj}cm away at an angle of {self.current_angle} degrees at point {object_coord}, within threshold of {self.threshold}cm. Stopping.")
+        self.logger.info(f"Object {round(self.distance_to_obj,2)}cm away at an angle of {self.current_angle} degrees at point {object_coord}, within threshold of {self.threshold}cm. Stopping.")
         fc.stop()
 
-    def move_forward(self, distance, seconds):
+    # scan is a boolean value that denotes whether to scan for objects while moving
+    def move_forward(self, distance: float, seconds: float, scan: bool):
         self.logger.info(f"Moving FORWARD at {self.power} power for {round(seconds,2)}sec for a distance of {round(distance,2)}cm")
         # move the car forwards for a number of seconds
         start_time = curr_time = time.time()
@@ -263,15 +312,16 @@ class PiCar(object):
         # and if an object is found via self.scan_sweep_avoid(), a -999 return value results, so avoid object and break the loop..
         while curr_time < stop_time:
             fc.forward(self.power)
-            self.scan_sweep_avoid()
-            if self.distance_to_obj > 0 and self.distance_to_obj <= self.threshold:
-                self.avoid_object()
-                curr_time = time.time()
-                # need a new distance since the car didn't travel the whole original distance
-                move_time = curr_time - start_time
-                distance = (move_time/seconds)*distance
-                self.logger.info(f"Stopped early due to object detection, traveled {round(distance,2)}cm in {round(move_time,2)}sec.")
-                break
+            if scan:
+                self.scan_sweep_avoid()
+                if self.distance_to_obj > 0 and self.distance_to_obj <= self.threshold:
+                    self.avoid_object()
+                    curr_time = time.time()
+                    # need a new distance since the car didn't travel the whole original distance
+                    move_time = curr_time - start_time
+                    distance = (move_time/seconds)*distance
+                    self.logger.info(f"Stopped early due to object detection, traveled {round(distance,2)}cm in {round(move_time,2)}sec.")
+                    break
             curr_time = time.time()
         fc.stop()
 
@@ -327,6 +377,56 @@ class PiCar(object):
     
     def stop_car(self):
         fc.stop()
+    
+    # find the point that is X distance units away from the farthest 1
+    # from the start point and is also the closest to the end
+    def find_farthest_point(self, arr, cluster_coordinates, start, end, distance):
+        
+        # initialize the start and end points from the Coordinates
+        start = np.array([start.x,start.y])
+        end = np.array([end.x, end.y])
+        
+        # turn cluster coordinates into a list
+        cc_x = list(cluster_coordinates[0])
+        cc_y = list(cluster_coordinates[1])
+        # make cluster coordinates into a list
+        cluster_coordinates = [[cc_x[i],cc_y[i]] for i in range(len(cc_x))]
+        
+        # find the farthest point in the cluster from the start point
+        farthest_point = None
+        max_distance = 0
+        for coord in cluster_coordinates:
+            curr_distance = np.linalg.norm(np.array(coord) - start)
+            if curr_distance > max_distance:
+                max_distance = curr_distance
+                farthest_point = coord
+        
+        # find the closest point in the cluster to the end point
+        closest_point = None
+        min_distance = math.inf
+        for coord in cluster_coordinates:
+            curr_distance = np.linalg.norm(np.array(coord) - end)
+            if curr_distance < min_distance:
+                min_distance = curr_distance
+                closest_point = coord
+        
+        # find the point that is at least `distance` units away from the closest point to the end
+        point = closest_point + np.array([distance, 0])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return Coordinate(point[0],point[1])
+        point = closest_point + np.array([-distance, 0])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return Coordinate(point[0],point[1])
+        point = closest_point + np.array([0, distance])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return Coordinate(point[0],point[1])
+        point = closest_point + np.array([0, -distance])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return Coordinate(point[0],point[1])
+        
+        # return the farthest point if a point couldn't be found
+        self.logger.info("Could not find a clearance point so returning the farthest point in the cluser.")
+        return Coorindate(farthest_point[0],farthest_point[1])
 
 
 if __name__ == "__main__":
@@ -334,19 +434,90 @@ if __name__ == "__main__":
     from astar import astar
 
     start = Coordinate(0,0)
-    end = Coordinate(50,50)
+    end = Coordinate(100,50)
 
     picar = PiCar(start_loc=start, goal_loc=end)
     
-    global_map = Maze(100,100)
+    global_map = Maze(3000,3000)
     
-    coord1 = Coordinate(0,0)
-    coord2 = Coordinate(0,100)
+    # try populating a test object on the map
     
-    points = picar.supercover_line(coord1,coord2)
-    print(points)
+    #global_map.maze[71,25:30].fill(1)
+    #global_map.maze[72,25:32].fill(1)
+    #global_map.maze[73,25:32].fill(1)
+    #global_map.maze[74,26:34].fill(1)
+    #global_map.maze[75,27:34].fill(1)
+    #global_map.maze[76,29:34].fill(1)
     
-    print(picar.within_radius(Coordinate(10,10),1))
+    current_loc = Coordinate(71,30)
+    
+    path = astar(global_map, current_loc, end)
+    
+    print("Path with obstacles:")
+    print(path)
+    
+    # find the point that is X distance units away from the farthest 1
+    # from the start point and is also the closest to the end
+    def find_farthest_point(arr, cluster_coordinates, start, end, distance):
+        
+        # initialize the start and end points from the Coordinates
+        start = np.array([start.x,start.y])
+        end = np.array([end.x, end.y])
+        
+        # turn cluster coordinates into a list
+        cc_x = list(cluster_coordinates[0])
+        cc_y = list(cluster_coordinates[1])
+        # make cluster coordinates into a list
+        cluster_coordinates = [[cc_x[i],cc_y[i]] for i in range(len(cc_x))]
+        
+        # if there are no object markers, return the end point
+        if len(cluster_coordinates) == 0:
+            return end
+        
+        # find the farthest point in the cluster from the start point
+        farthest_point = None
+        max_distance = 0
+        for coord in cluster_coordinates:
+            curr_distance = np.linalg.norm(np.array(coord) - start)
+            if curr_distance > max_distance:
+                max_distance = curr_distance
+                farthest_point = coord
+        
+        # find the closest point in the cluster to the end point
+        closest_point = None
+        min_distance = math.inf
+        for coord in cluster_coordinates:
+            curr_distance = np.linalg.norm(np.array(coord) - end)
+            if curr_distance < min_distance:
+                min_distance = curr_distance
+                closest_point = coord
+        
+        # find the point that is at least `distance` units away from the closest point to the end
+        point = closest_point + np.array([distance, 0])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([-distance, 0])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([0, distance])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        point = closest_point + np.array([0, -distance])
+        if (point >= np.zeros(2)).all() and (point < np.array(arr.shape)).all():
+            return point.astype(int)
+        
+        # return the farthest point if a point couldn't be found
+        return farthest_point
+    
+    cluster_coordinates = np.where(global_map.maze == 1)
+    
+    farthest_point = find_farthest_point(global_map.maze,cluster_coordinates,current_loc,end,5)
+    
+    print(farthest_point)
+    
+    
+    
+    
     
     
     

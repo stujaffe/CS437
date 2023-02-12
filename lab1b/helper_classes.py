@@ -58,11 +58,11 @@ class Maze(object):
     def __len__(self):
         return self.maze.shape[0]
     
-    def mark_object(self, coord: Coordinate) -> None:
-        if coord.x > self.x_length or coord.y > self.y_length or coord.x < 0 or coord.y < 0:
-            pass
-        else:
-            self.maze[coord.x, coord.y] = 1
+    # mark object only if within boundaries of the map
+    def mark_object(self, coord1: Coordinate, x_lower: int, x_upper: int, y_lower: int, y_upper: int) -> None:
+        if coord1.x >= x_lower and coord1.x < x_upper and coord1.y >= y_lower and coord1.y < y_upper:
+            self.maze[coord1.x, coord1.y] = 1
+            
             
 
 # hold the directions and their corresponding angles from the perspective of going north
