@@ -5,6 +5,8 @@ from helper_classes import Coordinate, Maze, Direction
 import picar_4wd as fc
 import math
 import numpy as np
+import detect
+import time
 
 def main():
     
@@ -78,6 +80,11 @@ def main():
             if is_in_map and curr_point not in coordinates_behind:
                 scan_points.append(curr_point)
         
+        # bring in the image recognition
+        # here check to see for any traffic lights or stop signs to be made aware of
+
+        image_rec = detect.start(picar)
+
         # if the car detects any objects, then navigate to a "clearance point"
         # the "clearance point" is defined as follows:
         ## 1. Take the farthest 1 (i.e. marked obstacle) from the car's current location
@@ -197,6 +204,18 @@ def main():
         # if there are no objects to be mapped, then continue onward to the global end
         # while continuing to scan for objects in order to avoid (not mapping)
         else:
+            # if an image was recognized from one of the five classes give it a time to sleep to obey traffic
+            if image_rec:
+                picar.logger.info(f"The following has been recognized: {image_rec}")
+                if image_rec == 'redlight':
+                    picar.stop_car()
+                    time.sleep(5)
+                elif image_rec == 'stopsign':
+                    picar.stop_car()
+                    time.sleep(2)
+                elif image_rec == 'cone':
+                    picar.stop_car()
+                    time.sleep(1)
             
             # mark car's location (to be removed soon)
             global_map.maze[picar.current_loc.x,picar.current_loc.y] = 4
