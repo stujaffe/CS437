@@ -1,0 +1,15 @@
+{
+  "name": "web_service",
+  "version": "1.0.0",
+  "description": "Web service for CS437 Lab 2.",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
+  },
+  "author": "Stuart Jaffe, William Skedd, Prasanna Murali",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^23.1.0"
+  }
+}
