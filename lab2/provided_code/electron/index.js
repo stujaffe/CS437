@@ -1,8 +1,12 @@
 document.onkeydown = updateKey;
 document.onkeyup = resetKey;
 
-var server_port = 65432;
-var server_addr = "192.168.3.49";   // the IP address of your Raspberry PI
+var server_port = 8080;
+var server_addr = "192.168.50.45";   // the IP address of your Raspberry PI
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 function client(){
     

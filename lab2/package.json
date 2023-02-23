@@ -1,10 +1,9 @@
 {
-  "name": "web_service",
+  "name": "lab2",
   "version": "1.0.0",
   "description": "Web service for CS437 Lab 2.",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron ."
   },
   "author": "Stuart Jaffe, William Skedd, Prasanna Murali",

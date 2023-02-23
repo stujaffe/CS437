@@ -9,6 +9,7 @@ function createWindow () {
     height: 1000,
     webPreferences: {
       nodeIntegration: true,
+      contextIsolation: false,
       preload: path.join(__dirname, 'preload.js')
     }
   })
@@ -17,7 +18,7 @@ function createWindow () {
   mainWindow.loadFile('index.html')
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
+  mainWindow.webContents.openDevTools()
 }
 
 // This method will be called when Electron has finished
