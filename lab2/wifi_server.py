@@ -7,28 +7,45 @@ from random import random
 HOST = "192.168.50.45" # IP address of your Raspberry PI
 PORT = 8080          # Port to listen on (non-privileged ports are > 1023)
 
-CAR_POWER = 20
-TURN_POWER = 10
+TURN_POWER = 10 # turn power
+CAR_POWER_ACT = 0 # actual power of the car
+CAR_POWER_SET = 20 # what we will set the car power to when moving forwar/backward
 
 def move_car_keystroke(k):
     
+    global CAR_POWER_ACT
+
     # key 87 = W
     if k == 87:
-        fc.forward(CAR_POWER)
+        CAR_POWER_ACT = CAR_POWER_SET
+        fc.forward(CAR_POWER_ACT)
     # key 83 = S
     elif k == 83:
-        fc.backward(CAR_POWER)
+        CAR_POWER_ACT = CAR_POWER_SET
+        fc.backward(CAR_POWER_ACT)
     # key 65 = A
     elif k == 65:
+        CAR_POWER_ACT = 0 # speed is 0
         fc.turn_left(TURN_POWER)
         sleep(random())
     # key 68 = D
     elif k == 68:
+        CAR_POWER_ACT = 0 # speed is 0
         fc.turn_right(TURN_POWER)
         sleep(random())
     # key 88 = X (stops the car)
-    elif k == 88: 
+    elif k == 88:
+        CAR_POWER_ACT = 0
         fc.stop()
+
+# speed function from Lab 1 Part 2
+def get_speed(car_power):
+    # get additional speed if car is over 10 power
+    extra = (car_power - 10)/10*2.5
+    # speed at 10 power is about 26.7 cm/s
+    speed = extra + 26.7 if car_power > 0 else 0
+
+    return speed
         
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -61,7 +78,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 temp = bytes(str(f"{temp} C\n"),"utf-8")
                 
                 # get car's speed
-                speed = round(float(fc.speed_val()),2)
+                speed = round(float(get_speed(CAR_POWER_ACT)),2)
                 speed = bytes(str(f"{speed}\n"),"utf-8")
                 
                 # get car's power supply reading
