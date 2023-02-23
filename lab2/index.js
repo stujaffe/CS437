@@ -1,8 +1,9 @@
 document.onkeydown = updateKey;
 document.onkeyup = resetKey;
 
-var server_port = 65432;
-var server_addr = "192.168.3.49";   // the IP address of your Raspberry PI
+var server_port = 8080;
+var server_addr = "192.168.50.45";   // the IP address of your Raspberry PI
+
 
 function client(){
     
@@ -18,7 +19,15 @@ function client(){
     
     // get the data from the server
     client.on('data', (data) => {
-        document.getElementById("bluetooth").innerHTML = data;
+        const data_ret = data.toString().split("\n")
+        temp = data_ret[0]
+        speed = data_ret[1]
+        power_supply = data_ret[2]
+
+        document.getElementById("cpu_temperature").innerHTML = temp
+        document.getElementById("speed").innerHTML = speed
+        document.getElementById("power_supply").innerHTML = power_supply
+
         console.log(data.toString());
         client.end();
         client.destroy();
@@ -31,8 +40,21 @@ function client(){
 
 }
 
+function send_data(input){
+    const net = require('net');
+ 
+    const client = net.createConnection({ port: server_port, host: server_addr }, () => {
+        // 'connect' listener.
+        console.log('connected to server!');
+        // send the message
+        client.write(`${input}`);
+    });
+}
+
 // for detecting which key is been pressed w,a,s,d
 function updateKey(e) {
+
+    console.log(e.keyCode)
 
     e = e || window.event;
 
@@ -56,10 +78,16 @@ function updateKey(e) {
         document.getElementById("rightArrow").style.color = "green";
         send_data("68");
     }
+    else if (e.keyCode == '88') {
+        // stop the car (x)
+        send_data("88")
+    }
 }
 
 // reset the key to the start state 
 function resetKey(e) {
+
+    console.log(e.keyCode)
 
     e = e || window.event;
 
@@ -72,8 +100,11 @@ function resetKey(e) {
 
 // update data for every 50ms
 function update_data(){
+    /*
     setInterval(function(){
         // get image from python server
         client();
     }, 50);
+    */
+    client()
 }
