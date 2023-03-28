@@ -44,13 +44,13 @@ class IoTOperations(object):
                 certificate_id = response_data["certificateId"]
 
         # save keys/pems/etc to files
-        with open(f"{self.output_folder}{thing_name}public.key", "w") as outfile:
+        with open(f"{self.output_folder}{thing_name}_public.key", "w") as outfile:
             outfile.write(public_key)
 
-        with open(f"{self.output_folder}{thing_name}private.key", "w") as outfile:
+        with open(f"{self.output_folder}{thing_name}_private.key", "w") as outfile:
             outfile.write(private_key)
 
-        with open(f"{self.output_folder}{thing_name}certificate.pem", "w") as outfile:
+        with open(f"{self.output_folder}{thing_name}_certificate.pem", "w") as outfile:
             outfile.write(certificate_pem)
 
         response = self.client.attach_policy(

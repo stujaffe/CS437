@@ -21,8 +21,8 @@ device_end = 10
 data_path = "vehicle_data/vehicle{}.csv"
 
 # Path to your certificates
-certificate_formatter = "./certificates/device_{}.certificate.pem"
-key_formatter = "./certificates/device_{}.private.pem"
+certificate_formatter = "./certificates/device_{}_certificate.pem"
+key_formatter = "./certificates/device_{}_private.key"
 
 
 class MQTTClient:
