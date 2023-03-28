@@ -1,1 +1,0 @@
-I put the .pem and .key files when creating things on AWS IoT in this folder.

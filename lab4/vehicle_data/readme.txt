@@ -1,0 +1,1 @@
+The CSV files with the vehicle data (found here: https://drive.google.com/drive/folders/1UR9nSXToIbP-L1II-jpCj7SJfLXs6tmY) should go in this folder.

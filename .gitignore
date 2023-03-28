@@ -5,3 +5,4 @@ lab2/node_modules/*
 *.key
 *.pem
 *.pyc
+*.csv
