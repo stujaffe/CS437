@@ -6,3 +6,4 @@ lab2/node_modules/*
 *.pem
 *.pyc
 *.csv
+*.zip

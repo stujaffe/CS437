@@ -15,10 +15,13 @@ AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 DEFAULT_POLICY_NAME = os.environ.get("DEFAULT_POLICY_NAME")
 
 # number of IoT things to create
-NUM_THINGS = 10
+NUM_THINGS = 5
 
 # do you want to delete all the current things?
 DELETE_THINGS = True
+
+# GreenGrass group name
+GROUP_NAME = "Greengrass_Lab4"
 
 if __name__ == "__main__":
     # initialize AWS IOT client object
@@ -40,6 +43,11 @@ if __name__ == "__main__":
     for i in range(NUM_THINGS):
         thing_name = f"device_{i}"
         iot_client.create_thing(thing_name=thing_name)
+    
+    # add to group
+    for name in iot_client.list_things():
+        iot_client.add_thing_to_group(thing_name=name, group_name=GROUP_NAME)
+
 
 
     

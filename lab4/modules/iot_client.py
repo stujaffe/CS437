@@ -84,42 +84,46 @@ class IoTOperations(object):
                 keep_going = False
 
         return result
+    
+    def add_thing_to_group(self, thing_name: str, group_name: str) -> None:
+        self.client.add_thing_to_thing_group(thingGroupName = group_name, thingName=thing_name)
+
 
     """
     Set of functions in order to delete a thing with a certificate attached. Kind of involved.
     """
 
     # detch the certificate from the thing
-    def list_thing_principals(self, thing_name: str):
+    def list_thing_principals(self, thing_name: str) -> None:
         response = self.client.list_thing_principals(thingName=thing_name)
         return response.get("principals")
 
-    def detach_certificate_from_thing(self, thing_name: str, certificate_arn: str):
+    def detach_certificate_from_thing(self, thing_name: str, certificate_arn: str) -> None:
         response = self.client.detach_thing_principal(
             thingName=thing_name, principal=certificate_arn
         )
         return response
 
-    def update_certificate(self, certificate_id: str, status: str):
+    def update_certificate(self, certificate_id: str, status: str) -> None:
         response = self.client.update_certificate(
             certificateId=certificate_id, newStatus=status
         )
         return response
 
-    def delete_certificate(self, certificate_id: str):
+    def delete_certificate(self, certificate_id: str) -> None:
         response = self.client.delete_certificate(certificateId=certificate_id)
         return response
 
-    def delete_thing(self, thing_name: str):
+    def delete_thing(self, thing_name: str) -> None:
         response = self.client.delete_thing(thingName=thing_name)
         return response
 
     # detach certificate from the policy
-    def list_certificate_policies(self, certificate_arn: str):
+    def list_certificate_policies(self, certificate_arn: str) -> None:
         response = self.client.list_principal_policies(principal=certificate_arn)
         return response.get("policies")
 
-    def detach_policy_from_certificate(self, policy_name: str, certificate_arn: str):
+    def detach_policy_from_certificate(self, policy_name: str, certificate_arn: str) -> None:
         response = self.client.detach_policy(
             policyName=policy_name,
             target=certificate_arn
@@ -127,7 +131,12 @@ class IoTOperations(object):
         return response
 
 
-    def delete_thing_with_certificate(self, thing_name: str):
+    def delete_thing_with_certificate(self, thing_name: str) -> None:
+
+        # don't delete the GreenGrass core device!
+        if "core" in thing_name.lower():
+            return None
+
         principals = self.list_thing_principals(thing_name)
 
         for principal in principals:
