@@ -712,54 +712,6 @@ class MessageFrame:
         )
 
 
-class Status(enum.Enum):
-    """
-    The status of the event.
-    """
-
-    Success = 0
-    Failure = 1
-    InProgress = 2
-    Warning = 3
-    Canceled = 4
-
-    @staticmethod
-    def from_dict(d):
-        return Status(d)
-
-    def as_dict(self):
-        return self.value
-
-    def __repr__(self):
-        return "<Enum Status. {}: {}>".format(
-            limitedRepr(self.name), limitedRepr(self.value)
-        )
-
-
-class StatusLevel(enum.Enum):
-    """
-    Defines the verbosity of status messages in a status-stream.
-    """
-
-    ERROR = 0
-    WARN = 1
-    INFO = 2
-    DEBUG = 3
-    TRACE = 4
-
-    @staticmethod
-    def from_dict(d):
-        return StatusLevel(d)
-
-    def as_dict(self):
-        return self.value
-
-    def __repr__(self):
-        return "<Enum StatusLevel. {}: {}>".format(
-            limitedRepr(self.name), limitedRepr(self.value)
-        )
-
-
 class S3ExportTaskDefinition:
     """
     S3 Task definition containing all the information necessary to export the data to S3. This will contain the S3 bucket and key as well as the file's URL where the data is stored.
@@ -1162,6 +1114,54 @@ class EventType(enum.Enum):
 
     def __repr__(self):
         return "<Enum EventType. {}: {}>".format(
+            limitedRepr(self.name), limitedRepr(self.value)
+        )
+
+
+class Status(enum.Enum):
+    """
+    The status of the event.
+    """
+
+    Success = 0
+    Failure = 1
+    InProgress = 2
+    Warning = 3
+    Canceled = 4
+
+    @staticmethod
+    def from_dict(d):
+        return Status(d)
+
+    def as_dict(self):
+        return self.value
+
+    def __repr__(self):
+        return "<Enum Status. {}: {}>".format(
+            limitedRepr(self.name), limitedRepr(self.value)
+        )
+
+
+class StatusLevel(enum.Enum):
+    """
+    Defines the verbosity of status messages in a status-stream.
+    """
+
+    ERROR = 0
+    WARN = 1
+    INFO = 2
+    DEBUG = 3
+    TRACE = 4
+
+    @staticmethod
+    def from_dict(d):
+        return StatusLevel(d)
+
+    def as_dict(self):
+        return self.value
+
+    def __repr__(self):
+        return "<Enum StatusLevel. {}: {}>".format(
             limitedRepr(self.name), limitedRepr(self.value)
         )
 
@@ -1960,27 +1960,141 @@ class KinesisConfig:
         )
 
 
-class IoTSiteWiseConfig:
+class StatusConfig:
     """
-    Configuration object for IotSiteWise data streams export destination. Minimum version requirements: StreamManager server version 1.1 (or AWS IoT Greengrass Core 1.11.0)
+    Configuration for status in a status-stream.
+    """
+
+    __slots__ = [
+        "__status_level",
+        "__status_stream_name",
+    ]
+
+    _types_map = {
+        "status_level": {"type": StatusLevel, "subtype": None},
+        "status_stream_name": {"type": str, "subtype": None},
+    }
+    _formats_map = {}
+    _validations_map = {
+        "status_level": {
+            "required": False,
+        },
+        "status_stream_name": {
+            "required": False,
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[\w ,.\-_]*$",
+        },
+    }
+
+    def __init__(
+        self, status_level: StatusLevel = None, status_stream_name: str = None
+    ):
+        """
+        :param status_level: Defines the verbosity of status messages in a status-stream.
+        :param status_stream_name: The name of the stream to which status messages are appended.
+            The status-stream should be created before associating it with another stream.
+        """
+        pass
+        self.__status_level = status_level
+        self.__status_stream_name = status_stream_name
+
+    def _get_status_level(self):
+        return self.__status_level
+
+    def _set_status_level(self, value):
+        if value is not None and not isinstance(value, StatusLevel):
+            raise TypeError("status_level must be StatusLevel")
+
+        self.__status_level = value
+
+    status_level = property(_get_status_level, _set_status_level)
+    """
+    Defines the verbosity of status messages in a status-stream.
+    """
+
+    def _get_status_stream_name(self):
+        return self.__status_stream_name
+
+    def _set_status_stream_name(self, value):
+        if value is not None and not isinstance(value, str):
+            raise TypeError("status_stream_name must be str")
+
+        self.__status_stream_name = value
+
+    status_stream_name = property(_get_status_stream_name, _set_status_stream_name)
+    """
+    The name of the stream to which status messages are appended.
+    The status-stream should be created before associating it with another stream.
+    """
+
+    @staticmethod
+    def from_dict(d):
+        v = {}
+        if "statusLevel" in d:
+            v["status_level"] = (
+                StatusLevel.from_dict(d["statusLevel"])
+                if hasattr(StatusLevel, "from_dict")
+                else d["statusLevel"]
+            )
+        if "statusStreamName" in d:
+            v["status_stream_name"] = (
+                str.from_dict(d["statusStreamName"])
+                if hasattr(str, "from_dict")
+                else d["statusStreamName"]
+            )
+        return StatusConfig(**v)
+
+    def as_dict(self):
+        d = {}
+        if self.__status_level is not None:
+            d["statusLevel"] = (
+                self.__status_level.as_dict()
+                if hasattr(self.__status_level, "as_dict")
+                else self.__status_level
+            )
+        if self.__status_stream_name is not None:
+            d["statusStreamName"] = (
+                self.__status_stream_name.as_dict()
+                if hasattr(self.__status_stream_name, "as_dict")
+                else self.__status_stream_name
+            )
+        return d
+
+    def __repr__(self):
+        return "<Class StatusConfig. status_level: {}, status_stream_name: {}>".format(
+            limitedRepr(
+                self.__status_level[:20]
+                if isinstance(self.__status_level, bytes)
+                else self.__status_level
+            ),
+            limitedRepr(
+                self.__status_stream_name[:20]
+                if isinstance(self.__status_stream_name, bytes)
+                else self.__status_stream_name
+            ),
+        )
+
+
+class S3ExportTaskExecutorConfig:
+    """
+    Configuration object for S3 export tasks executor.  Minimum version requirements: StreamManager server version 1.1 (or AWS IoT Greengrass Core 1.11.0)
     """
 
     __slots__ = [
         "__identifier",
-        "__batch_size",
-        "__batch_interval_millis",
+        "__size_threshold_for_multipart_upload_bytes",
         "__priority",
-        "__start_sequence_number",
         "__disabled",
+        "__status_config",
     ]
 
     _types_map = {
         "identifier": {"type": str, "subtype": None},
-        "batch_size": {"type": int, "subtype": None},
-        "batch_interval_millis": {"type": int, "subtype": None},
+        "size_threshold_for_multipart_upload_bytes": {"type": int, "subtype": None},
         "priority": {"type": int, "subtype": None},
-        "start_sequence_number": {"type": int, "subtype": None},
         "disabled": {"type": bool, "subtype": None},
+        "status_config": {"type": StatusConfig, "subtype": None},
     }
     _formats_map = {}
     _validations_map = {
@@ -1990,27 +2104,19 @@ class IoTSiteWiseConfig:
             "maxLength": 255,
             "pattern": "^[\w ,.\-_]*$",
         },
-        "batch_size": {
+        "size_threshold_for_multipart_upload_bytes": {
             "required": False,
-            "maximum": 10,
-            "minimum": 1,
-        },
-        "batch_interval_millis": {
-            "required": False,
-            "maximum": 9223372036854,
-            "minimum": 60000,
+            "minimum": 5242880,
         },
         "priority": {
             "required": False,
             "maximum": 10,
             "minimum": 1,
         },
-        "start_sequence_number": {
-            "required": False,
-            "maximum": 9223372036854775807,
-            "minimum": 0,
-        },
         "disabled": {
+            "required": False,
+        },
+        "status_config": {
             "required": False,
         },
     }
@@ -2018,32 +2124,27 @@ class IoTSiteWiseConfig:
     def __init__(
         self,
         identifier: str = None,
-        batch_size: int = None,
-        batch_interval_millis: int = None,
+        size_threshold_for_multipart_upload_bytes: int = None,
         priority: int = None,
-        start_sequence_number: int = None,
         disabled: bool = None,
+        status_config: StatusConfig = None,
     ):
         """
-        :param identifier: A unique identifier to identify this individual upload stream.
+        :param identifier: A unique identifier to identify this individual upload task.
             Must be an alphanumeric string including spaces, commas, periods, hyphens, and underscores with length between 1 and 255.
-        :param batch_size: The maximum size of a batch to send to the destination. Messages will be queued until the batch size is reached, after which they will then be uploaded. If unspecified the default will be 10.
-            If both batchSize and batchIntervalMillis are specified, then messages will be eligible for upload when either condition is met.
-            The minimum batch size is 1 and the maximum is 10.
-        :param batch_interval_millis: The time in milliseconds between the earliest un-uploaded message and the current time. If this time is exceeded, messages will be uploaded in the next batch. If unspecified messages will be eligible for upload immediately.
-            If both batchSize and batchIntervalMillis are specified, then messages will be eligible for upload when either condition is met.
-            The minimum value is 60000 milliseconds and the maximum is 9223372036854 milliseconds.
-        :param priority: Priority for this upload stream. Lower values are higher priority. If not specified it will have the lowest priority.
-        :param start_sequence_number: The sequence number of the message to use as the starting message in the export. Default is 0. The sequence number provided should be less than the newest sequence number in the stream, i.e., sequence number of the last messaged appended. To find the newest sequence number, describe the stream and then check the storage status of the returned MessageStreamInfo object.
+        :param size_threshold_for_multipart_upload_bytes: The size threshold in bytes for when to use multipart uploads. Uploads over this size will automatically use a multipart upload strategy, while uploads equal or smaller than this threshold will use a single connection to upload the whole object.
+        :param priority: Priority for this upload task. Lower values are higher priority. If not specified it will have the lowest priority.
         :param disabled: Enable or disable this export. Default is false.
+        :param status_config: Event status configuration that specifies the target status stream and verbosity.
         """
         pass
         self.__identifier = identifier
-        self.__batch_size = batch_size
-        self.__batch_interval_millis = batch_interval_millis
+        self.__size_threshold_for_multipart_upload_bytes = (
+            size_threshold_for_multipart_upload_bytes
+        )
         self.__priority = priority
-        self.__start_sequence_number = start_sequence_number
         self.__disabled = disabled
+        self.__status_config = status_config
 
     def _get_identifier(self):
         return self.__identifier
@@ -2056,42 +2157,25 @@ class IoTSiteWiseConfig:
 
     identifier = property(_get_identifier, _set_identifier)
     """
-    A unique identifier to identify this individual upload stream.
+    A unique identifier to identify this individual upload task.
     Must be an alphanumeric string including spaces, commas, periods, hyphens, and underscores with length between 1 and 255.
     """
 
-    def _get_batch_size(self):
-        return self.__batch_size
+    def _get_size_threshold_for_multipart_upload_bytes(self):
+        return self.__size_threshold_for_multipart_upload_bytes
 
-    def _set_batch_size(self, value):
+    def _set_size_threshold_for_multipart_upload_bytes(self, value):
         if value is not None and not isinstance(value, int):
-            raise TypeError("batch_size must be int")
+            raise TypeError("size_threshold_for_multipart_upload_bytes must be int")
 
-        self.__batch_size = value
+        self.__size_threshold_for_multipart_upload_bytes = value
 
-    batch_size = property(_get_batch_size, _set_batch_size)
-    """
-    The maximum size of a batch to send to the destination. Messages will be queued until the batch size is reached, after which they will then be uploaded. If unspecified the default will be 10.
-    If both batchSize and batchIntervalMillis are specified, then messages will be eligible for upload when either condition is met.
-    The minimum batch size is 1 and the maximum is 10.
-    """
-
-    def _get_batch_interval_millis(self):
-        return self.__batch_interval_millis
-
-    def _set_batch_interval_millis(self, value):
-        if value is not None and not isinstance(value, int):
-            raise TypeError("batch_interval_millis must be int")
-
-        self.__batch_interval_millis = value
-
-    batch_interval_millis = property(
-        _get_batch_interval_millis, _set_batch_interval_millis
+    size_threshold_for_multipart_upload_bytes = property(
+        _get_size_threshold_for_multipart_upload_bytes,
+        _set_size_threshold_for_multipart_upload_bytes,
     )
     """
-    The time in milliseconds between the earliest un-uploaded message and the current time. If this time is exceeded, messages will be uploaded in the next batch. If unspecified messages will be eligible for upload immediately.
-    If both batchSize and batchIntervalMillis are specified, then messages will be eligible for upload when either condition is met.
-    The minimum value is 60000 milliseconds and the maximum is 9223372036854 milliseconds.
+    The size threshold in bytes for when to use multipart uploads. Uploads over this size will automatically use a multipart upload strategy, while uploads equal or smaller than this threshold will use a single connection to upload the whole object.
     """
 
     def _get_priority(self):
@@ -2105,23 +2189,7 @@ class IoTSiteWiseConfig:
 
     priority = property(_get_priority, _set_priority)
     """
-    Priority for this upload stream. Lower values are higher priority. If not specified it will have the lowest priority.
-    """
-
-    def _get_start_sequence_number(self):
-        return self.__start_sequence_number
-
-    def _set_start_sequence_number(self, value):
-        if value is not None and not isinstance(value, int):
-            raise TypeError("start_sequence_number must be int")
-
-        self.__start_sequence_number = value
-
-    start_sequence_number = property(
-        _get_start_sequence_number, _set_start_sequence_number
-    )
-    """
-    The sequence number of the message to use as the starting message in the export. Default is 0. The sequence number provided should be less than the newest sequence number in the stream, i.e., sequence number of the last messaged appended. To find the newest sequence number, describe the stream and then check the storage status of the returned MessageStreamInfo object.
+    Priority for this upload task. Lower values are higher priority. If not specified it will have the lowest priority.
     """
 
     def _get_disabled(self):
@@ -2138,6 +2206,20 @@ class IoTSiteWiseConfig:
     Enable or disable this export. Default is false.
     """
 
+    def _get_status_config(self):
+        return self.__status_config
+
+    def _set_status_config(self, value):
+        if value is not None and not isinstance(value, StatusConfig):
+            raise TypeError("status_config must be StatusConfig")
+
+        self.__status_config = value
+
+    status_config = property(_get_status_config, _set_status_config)
+    """
+    Event status configuration that specifies the target status stream and verbosity.
+    """
+
     @staticmethod
     def from_dict(d):
         v = {}
@@ -2147,17 +2229,11 @@ class IoTSiteWiseConfig:
                 if hasattr(str, "from_dict")
                 else d["identifier"]
             )
-        if "batchSize" in d:
-            v["batch_size"] = (
-                int.from_dict(d["batchSize"])
+        if "sizeThresholdForMultipartUploadBytes" in d:
+            v["size_threshold_for_multipart_upload_bytes"] = (
+                int.from_dict(d["sizeThresholdForMultipartUploadBytes"])
                 if hasattr(int, "from_dict")
-                else d["batchSize"]
-            )
-        if "batchIntervalMillis" in d:
-            v["batch_interval_millis"] = (
-                int.from_dict(d["batchIntervalMillis"])
-                if hasattr(int, "from_dict")
-                else d["batchIntervalMillis"]
+                else d["sizeThresholdForMultipartUploadBytes"]
             )
         if "priority" in d:
             v["priority"] = (
@@ -2165,19 +2241,19 @@ class IoTSiteWiseConfig:
                 if hasattr(int, "from_dict")
                 else d["priority"]
             )
-        if "startSequenceNumber" in d:
-            v["start_sequence_number"] = (
-                int.from_dict(d["startSequenceNumber"])
-                if hasattr(int, "from_dict")
-                else d["startSequenceNumber"]
-            )
         if "disabled" in d:
             v["disabled"] = (
                 bool.from_dict(d["disabled"])
                 if hasattr(bool, "from_dict")
                 else d["disabled"]
             )
-        return IoTSiteWiseConfig(**v)
+        if "statusConfig" in d:
+            v["status_config"] = (
+                StatusConfig.from_dict(d["statusConfig"])
+                if hasattr(StatusConfig, "from_dict")
+                else d["statusConfig"]
+            )
+        return S3ExportTaskExecutorConfig(**v)
 
     def as_dict(self):
         d = {}
@@ -2187,17 +2263,11 @@ class IoTSiteWiseConfig:
                 if hasattr(self.__identifier, "as_dict")
                 else self.__identifier
             )
-        if self.__batch_size is not None:
-            d["batchSize"] = (
-                self.__batch_size.as_dict()
-                if hasattr(self.__batch_size, "as_dict")
-                else self.__batch_size
-            )
-        if self.__batch_interval_millis is not None:
-            d["batchIntervalMillis"] = (
-                self.__batch_interval_millis.as_dict()
-                if hasattr(self.__batch_interval_millis, "as_dict")
-                else self.__batch_interval_millis
+        if self.__size_threshold_for_multipart_upload_bytes is not None:
+            d["sizeThresholdForMultipartUploadBytes"] = (
+                self.__size_threshold_for_multipart_upload_bytes.as_dict()
+                if hasattr(self.__size_threshold_for_multipart_upload_bytes, "as_dict")
+                else self.__size_threshold_for_multipart_upload_bytes
             )
         if self.__priority is not None:
             d["priority"] = (
@@ -2205,36 +2275,31 @@ class IoTSiteWiseConfig:
                 if hasattr(self.__priority, "as_dict")
                 else self.__priority
             )
-        if self.__start_sequence_number is not None:
-            d["startSequenceNumber"] = (
-                self.__start_sequence_number.as_dict()
-                if hasattr(self.__start_sequence_number, "as_dict")
-                else self.__start_sequence_number
-            )
         if self.__disabled is not None:
             d["disabled"] = (
                 self.__disabled.as_dict()
                 if hasattr(self.__disabled, "as_dict")
                 else self.__disabled
             )
+        if self.__status_config is not None:
+            d["statusConfig"] = (
+                self.__status_config.as_dict()
+                if hasattr(self.__status_config, "as_dict")
+                else self.__status_config
+            )
         return d
 
     def __repr__(self):
-        return "<Class IoTSiteWiseConfig. identifier: {}, batch_size: {}, batch_interval_millis: {}, priority: {}, start_sequence_number: {}, disabled: {}>".format(
+        return "<Class S3ExportTaskExecutorConfig. identifier: {}, size_threshold_for_multipart_upload_bytes: {}, priority: {}, disabled: {}, status_config: {}>".format(
             limitedRepr(
                 self.__identifier[:20]
                 if isinstance(self.__identifier, bytes)
                 else self.__identifier
             ),
             limitedRepr(
-                self.__batch_size[:20]
-                if isinstance(self.__batch_size, bytes)
-                else self.__batch_size
-            ),
-            limitedRepr(
-                self.__batch_interval_millis[:20]
-                if isinstance(self.__batch_interval_millis, bytes)
-                else self.__batch_interval_millis
+                self.__size_threshold_for_multipart_upload_bytes[:20]
+                if isinstance(self.__size_threshold_for_multipart_upload_bytes, bytes)
+                else self.__size_threshold_for_multipart_upload_bytes
             ),
             limitedRepr(
                 self.__priority[:20]
@@ -2242,14 +2307,14 @@ class IoTSiteWiseConfig:
                 else self.__priority
             ),
             limitedRepr(
-                self.__start_sequence_number[:20]
-                if isinstance(self.__start_sequence_number, bytes)
-                else self.__start_sequence_number
-            ),
-            limitedRepr(
                 self.__disabled[:20]
                 if isinstance(self.__disabled, bytes)
                 else self.__disabled
+            ),
+            limitedRepr(
+                self.__status_config[:20]
+                if isinstance(self.__status_config, bytes)
+                else self.__status_config
             ),
         )
 
@@ -2646,365 +2711,6 @@ class HTTPConfig:
         )
 
 
-class StatusConfig:
-    """
-    Configuration for status in a status-stream.
-    """
-
-    __slots__ = [
-        "__status_level",
-        "__status_stream_name",
-    ]
-
-    _types_map = {
-        "status_level": {"type": StatusLevel, "subtype": None},
-        "status_stream_name": {"type": str, "subtype": None},
-    }
-    _formats_map = {}
-    _validations_map = {
-        "status_level": {
-            "required": False,
-        },
-        "status_stream_name": {
-            "required": False,
-            "minLength": 1,
-            "maxLength": 255,
-            "pattern": "^[\w ,.\-_]*$",
-        },
-    }
-
-    def __init__(
-        self, status_level: StatusLevel = None, status_stream_name: str = None
-    ):
-        """
-        :param status_level: Defines the verbosity of status messages in a status-stream.
-        :param status_stream_name: The name of the stream to which status messages are appended.
-            The status-stream should be created before associating it with another stream.
-        """
-        pass
-        self.__status_level = status_level
-        self.__status_stream_name = status_stream_name
-
-    def _get_status_level(self):
-        return self.__status_level
-
-    def _set_status_level(self, value):
-        if value is not None and not isinstance(value, StatusLevel):
-            raise TypeError("status_level must be StatusLevel")
-
-        self.__status_level = value
-
-    status_level = property(_get_status_level, _set_status_level)
-    """
-    Defines the verbosity of status messages in a status-stream.
-    """
-
-    def _get_status_stream_name(self):
-        return self.__status_stream_name
-
-    def _set_status_stream_name(self, value):
-        if value is not None and not isinstance(value, str):
-            raise TypeError("status_stream_name must be str")
-
-        self.__status_stream_name = value
-
-    status_stream_name = property(_get_status_stream_name, _set_status_stream_name)
-    """
-    The name of the stream to which status messages are appended.
-    The status-stream should be created before associating it with another stream.
-    """
-
-    @staticmethod
-    def from_dict(d):
-        v = {}
-        if "statusLevel" in d:
-            v["status_level"] = (
-                StatusLevel.from_dict(d["statusLevel"])
-                if hasattr(StatusLevel, "from_dict")
-                else d["statusLevel"]
-            )
-        if "statusStreamName" in d:
-            v["status_stream_name"] = (
-                str.from_dict(d["statusStreamName"])
-                if hasattr(str, "from_dict")
-                else d["statusStreamName"]
-            )
-        return StatusConfig(**v)
-
-    def as_dict(self):
-        d = {}
-        if self.__status_level is not None:
-            d["statusLevel"] = (
-                self.__status_level.as_dict()
-                if hasattr(self.__status_level, "as_dict")
-                else self.__status_level
-            )
-        if self.__status_stream_name is not None:
-            d["statusStreamName"] = (
-                self.__status_stream_name.as_dict()
-                if hasattr(self.__status_stream_name, "as_dict")
-                else self.__status_stream_name
-            )
-        return d
-
-    def __repr__(self):
-        return "<Class StatusConfig. status_level: {}, status_stream_name: {}>".format(
-            limitedRepr(
-                self.__status_level[:20]
-                if isinstance(self.__status_level, bytes)
-                else self.__status_level
-            ),
-            limitedRepr(
-                self.__status_stream_name[:20]
-                if isinstance(self.__status_stream_name, bytes)
-                else self.__status_stream_name
-            ),
-        )
-
-
-class S3ExportTaskExecutorConfig:
-    """
-    Configuration object for S3 export tasks executor.  Minimum version requirements: StreamManager server version 1.1 (or AWS IoT Greengrass Core 1.11.0)
-    """
-
-    __slots__ = [
-        "__identifier",
-        "__size_threshold_for_multipart_upload_bytes",
-        "__priority",
-        "__disabled",
-        "__status_config",
-    ]
-
-    _types_map = {
-        "identifier": {"type": str, "subtype": None},
-        "size_threshold_for_multipart_upload_bytes": {"type": int, "subtype": None},
-        "priority": {"type": int, "subtype": None},
-        "disabled": {"type": bool, "subtype": None},
-        "status_config": {"type": StatusConfig, "subtype": None},
-    }
-    _formats_map = {}
-    _validations_map = {
-        "identifier": {
-            "required": True,
-            "minLength": 1,
-            "maxLength": 255,
-            "pattern": "^[\w ,.\-_]*$",
-        },
-        "size_threshold_for_multipart_upload_bytes": {
-            "required": False,
-            "minimum": 5242880,
-        },
-        "priority": {
-            "required": False,
-            "maximum": 10,
-            "minimum": 1,
-        },
-        "disabled": {
-            "required": False,
-        },
-        "status_config": {
-            "required": False,
-        },
-    }
-
-    def __init__(
-        self,
-        identifier: str = None,
-        size_threshold_for_multipart_upload_bytes: int = None,
-        priority: int = None,
-        disabled: bool = None,
-        status_config: StatusConfig = None,
-    ):
-        """
-        :param identifier: A unique identifier to identify this individual upload task.
-            Must be an alphanumeric string including spaces, commas, periods, hyphens, and underscores with length between 1 and 255.
-        :param size_threshold_for_multipart_upload_bytes: The size threshold in bytes for when to use multipart uploads. Uploads over this size will automatically use a multipart upload strategy, while uploads equal or smaller than this threshold will use a single connection to upload the whole object.
-        :param priority: Priority for this upload task. Lower values are higher priority. If not specified it will have the lowest priority.
-        :param disabled: Enable or disable this export. Default is false.
-        :param status_config: Event status configuration that specifies the target status stream and verbosity.
-        """
-        pass
-        self.__identifier = identifier
-        self.__size_threshold_for_multipart_upload_bytes = (
-            size_threshold_for_multipart_upload_bytes
-        )
-        self.__priority = priority
-        self.__disabled = disabled
-        self.__status_config = status_config
-
-    def _get_identifier(self):
-        return self.__identifier
-
-    def _set_identifier(self, value):
-        if not isinstance(value, str):
-            raise TypeError("identifier must be str")
-
-        self.__identifier = value
-
-    identifier = property(_get_identifier, _set_identifier)
-    """
-    A unique identifier to identify this individual upload task.
-    Must be an alphanumeric string including spaces, commas, periods, hyphens, and underscores with length between 1 and 255.
-    """
-
-    def _get_size_threshold_for_multipart_upload_bytes(self):
-        return self.__size_threshold_for_multipart_upload_bytes
-
-    def _set_size_threshold_for_multipart_upload_bytes(self, value):
-        if value is not None and not isinstance(value, int):
-            raise TypeError("size_threshold_for_multipart_upload_bytes must be int")
-
-        self.__size_threshold_for_multipart_upload_bytes = value
-
-    size_threshold_for_multipart_upload_bytes = property(
-        _get_size_threshold_for_multipart_upload_bytes,
-        _set_size_threshold_for_multipart_upload_bytes,
-    )
-    """
-    The size threshold in bytes for when to use multipart uploads. Uploads over this size will automatically use a multipart upload strategy, while uploads equal or smaller than this threshold will use a single connection to upload the whole object.
-    """
-
-    def _get_priority(self):
-        return self.__priority
-
-    def _set_priority(self, value):
-        if value is not None and not isinstance(value, int):
-            raise TypeError("priority must be int")
-
-        self.__priority = value
-
-    priority = property(_get_priority, _set_priority)
-    """
-    Priority for this upload task. Lower values are higher priority. If not specified it will have the lowest priority.
-    """
-
-    def _get_disabled(self):
-        return self.__disabled
-
-    def _set_disabled(self, value):
-        if value is not None and not isinstance(value, bool):
-            raise TypeError("disabled must be bool")
-
-        self.__disabled = value
-
-    disabled = property(_get_disabled, _set_disabled)
-    """
-    Enable or disable this export. Default is false.
-    """
-
-    def _get_status_config(self):
-        return self.__status_config
-
-    def _set_status_config(self, value):
-        if value is not None and not isinstance(value, StatusConfig):
-            raise TypeError("status_config must be StatusConfig")
-
-        self.__status_config = value
-
-    status_config = property(_get_status_config, _set_status_config)
-    """
-    Event status configuration that specifies the target status stream and verbosity.
-    """
-
-    @staticmethod
-    def from_dict(d):
-        v = {}
-        if "identifier" in d:
-            v["identifier"] = (
-                str.from_dict(d["identifier"])
-                if hasattr(str, "from_dict")
-                else d["identifier"]
-            )
-        if "sizeThresholdForMultipartUploadBytes" in d:
-            v["size_threshold_for_multipart_upload_bytes"] = (
-                int.from_dict(d["sizeThresholdForMultipartUploadBytes"])
-                if hasattr(int, "from_dict")
-                else d["sizeThresholdForMultipartUploadBytes"]
-            )
-        if "priority" in d:
-            v["priority"] = (
-                int.from_dict(d["priority"])
-                if hasattr(int, "from_dict")
-                else d["priority"]
-            )
-        if "disabled" in d:
-            v["disabled"] = (
-                bool.from_dict(d["disabled"])
-                if hasattr(bool, "from_dict")
-                else d["disabled"]
-            )
-        if "statusConfig" in d:
-            v["status_config"] = (
-                StatusConfig.from_dict(d["statusConfig"])
-                if hasattr(StatusConfig, "from_dict")
-                else d["statusConfig"]
-            )
-        return S3ExportTaskExecutorConfig(**v)
-
-    def as_dict(self):
-        d = {}
-        if self.__identifier is not None:
-            d["identifier"] = (
-                self.__identifier.as_dict()
-                if hasattr(self.__identifier, "as_dict")
-                else self.__identifier
-            )
-        if self.__size_threshold_for_multipart_upload_bytes is not None:
-            d["sizeThresholdForMultipartUploadBytes"] = (
-                self.__size_threshold_for_multipart_upload_bytes.as_dict()
-                if hasattr(self.__size_threshold_for_multipart_upload_bytes, "as_dict")
-                else self.__size_threshold_for_multipart_upload_bytes
-            )
-        if self.__priority is not None:
-            d["priority"] = (
-                self.__priority.as_dict()
-                if hasattr(self.__priority, "as_dict")
-                else self.__priority
-            )
-        if self.__disabled is not None:
-            d["disabled"] = (
-                self.__disabled.as_dict()
-                if hasattr(self.__disabled, "as_dict")
-                else self.__disabled
-            )
-        if self.__status_config is not None:
-            d["statusConfig"] = (
-                self.__status_config.as_dict()
-                if hasattr(self.__status_config, "as_dict")
-                else self.__status_config
-            )
-        return d
-
-    def __repr__(self):
-        return "<Class S3ExportTaskExecutorConfig. identifier: {}, size_threshold_for_multipart_upload_bytes: {}, priority: {}, disabled: {}, status_config: {}>".format(
-            limitedRepr(
-                self.__identifier[:20]
-                if isinstance(self.__identifier, bytes)
-                else self.__identifier
-            ),
-            limitedRepr(
-                self.__size_threshold_for_multipart_upload_bytes[:20]
-                if isinstance(self.__size_threshold_for_multipart_upload_bytes, bytes)
-                else self.__size_threshold_for_multipart_upload_bytes
-            ),
-            limitedRepr(
-                self.__priority[:20]
-                if isinstance(self.__priority, bytes)
-                else self.__priority
-            ),
-            limitedRepr(
-                self.__disabled[:20]
-                if isinstance(self.__disabled, bytes)
-                else self.__disabled
-            ),
-            limitedRepr(
-                self.__status_config[:20]
-                if isinstance(self.__status_config, bytes)
-                else self.__status_config
-            ),
-        )
-
-
 class IoTAnalyticsConfig:
     """
     Configuration object for IoT Analytics export destination.
@@ -3352,6 +3058,300 @@ class IoTAnalyticsConfig:
                 self.__iot_msg_id_prefix[:20]
                 if isinstance(self.__iot_msg_id_prefix, bytes)
                 else self.__iot_msg_id_prefix
+            ),
+            limitedRepr(
+                self.__batch_size[:20]
+                if isinstance(self.__batch_size, bytes)
+                else self.__batch_size
+            ),
+            limitedRepr(
+                self.__batch_interval_millis[:20]
+                if isinstance(self.__batch_interval_millis, bytes)
+                else self.__batch_interval_millis
+            ),
+            limitedRepr(
+                self.__priority[:20]
+                if isinstance(self.__priority, bytes)
+                else self.__priority
+            ),
+            limitedRepr(
+                self.__start_sequence_number[:20]
+                if isinstance(self.__start_sequence_number, bytes)
+                else self.__start_sequence_number
+            ),
+            limitedRepr(
+                self.__disabled[:20]
+                if isinstance(self.__disabled, bytes)
+                else self.__disabled
+            ),
+        )
+
+
+class IoTSiteWiseConfig:
+    """
+    Configuration object for IotSiteWise data streams export destination. Minimum version requirements: StreamManager server version 1.1 (or AWS IoT Greengrass Core 1.11.0)
+    """
+
+    __slots__ = [
+        "__identifier",
+        "__batch_size",
+        "__batch_interval_millis",
+        "__priority",
+        "__start_sequence_number",
+        "__disabled",
+    ]
+
+    _types_map = {
+        "identifier": {"type": str, "subtype": None},
+        "batch_size": {"type": int, "subtype": None},
+        "batch_interval_millis": {"type": int, "subtype": None},
+        "priority": {"type": int, "subtype": None},
+        "start_sequence_number": {"type": int, "subtype": None},
+        "disabled": {"type": bool, "subtype": None},
+    }
+    _formats_map = {}
+    _validations_map = {
+        "identifier": {
+            "required": True,
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[\w ,.\-_]*$",
+        },
+        "batch_size": {
+            "required": False,
+            "maximum": 10,
+            "minimum": 1,
+        },
+        "batch_interval_millis": {
+            "required": False,
+            "maximum": 9223372036854,
+            "minimum": 60000,
+        },
+        "priority": {
+            "required": False,
+            "maximum": 10,
+            "minimum": 1,
+        },
+        "start_sequence_number": {
+            "required": False,
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+        },
+        "disabled": {
+            "required": False,
+        },
+    }
+
+    def __init__(
+        self,
+        identifier: str = None,
+        batch_size: int = None,
+        batch_interval_millis: int = None,
+        priority: int = None,
+        start_sequence_number: int = None,
+        disabled: bool = None,
+    ):
+        """
+        :param identifier: A unique identifier to identify this individual upload stream.
+            Must be an alphanumeric string including spaces, commas, periods, hyphens, and underscores with length between 1 and 255.
+        :param batch_size: The maximum size of a batch to send to the destination. Messages will be queued until the batch size is reached, after which they will then be uploaded. If unspecified the default will be 10.
+            If both batchSize and batchIntervalMillis are specified, then messages will be eligible for upload when either condition is met.
+            The minimum batch size is 1 and the maximum is 10.
+        :param batch_interval_millis: The time in milliseconds between the earliest un-uploaded message and the current time. If this time is exceeded, messages will be uploaded in the next batch. If unspecified messages will be eligible for upload immediately.
+            If both batchSize and batchIntervalMillis are specified, then messages will be eligible for upload when either condition is met.
+            The minimum value is 60000 milliseconds and the maximum is 9223372036854 milliseconds.
+        :param priority: Priority for this upload stream. Lower values are higher priority. If not specified it will have the lowest priority.
+        :param start_sequence_number: The sequence number of the message to use as the starting message in the export. Default is 0. The sequence number provided should be less than the newest sequence number in the stream, i.e., sequence number of the last messaged appended. To find the newest sequence number, describe the stream and then check the storage status of the returned MessageStreamInfo object.
+        :param disabled: Enable or disable this export. Default is false.
+        """
+        pass
+        self.__identifier = identifier
+        self.__batch_size = batch_size
+        self.__batch_interval_millis = batch_interval_millis
+        self.__priority = priority
+        self.__start_sequence_number = start_sequence_number
+        self.__disabled = disabled
+
+    def _get_identifier(self):
+        return self.__identifier
+
+    def _set_identifier(self, value):
+        if not isinstance(value, str):
+            raise TypeError("identifier must be str")
+
+        self.__identifier = value
+
+    identifier = property(_get_identifier, _set_identifier)
+    """
+    A unique identifier to identify this individual upload stream.
+    Must be an alphanumeric string including spaces, commas, periods, hyphens, and underscores with length between 1 and 255.
+    """
+
+    def _get_batch_size(self):
+        return self.__batch_size
+
+    def _set_batch_size(self, value):
+        if value is not None and not isinstance(value, int):
+            raise TypeError("batch_size must be int")
+
+        self.__batch_size = value
+
+    batch_size = property(_get_batch_size, _set_batch_size)
+    """
+    The maximum size of a batch to send to the destination. Messages will be queued until the batch size is reached, after which they will then be uploaded. If unspecified the default will be 10.
+    If both batchSize and batchIntervalMillis are specified, then messages will be eligible for upload when either condition is met.
+    The minimum batch size is 1 and the maximum is 10.
+    """
+
+    def _get_batch_interval_millis(self):
+        return self.__batch_interval_millis
+
+    def _set_batch_interval_millis(self, value):
+        if value is not None and not isinstance(value, int):
+            raise TypeError("batch_interval_millis must be int")
+
+        self.__batch_interval_millis = value
+
+    batch_interval_millis = property(
+        _get_batch_interval_millis, _set_batch_interval_millis
+    )
+    """
+    The time in milliseconds between the earliest un-uploaded message and the current time. If this time is exceeded, messages will be uploaded in the next batch. If unspecified messages will be eligible for upload immediately.
+    If both batchSize and batchIntervalMillis are specified, then messages will be eligible for upload when either condition is met.
+    The minimum value is 60000 milliseconds and the maximum is 9223372036854 milliseconds.
+    """
+
+    def _get_priority(self):
+        return self.__priority
+
+    def _set_priority(self, value):
+        if value is not None and not isinstance(value, int):
+            raise TypeError("priority must be int")
+
+        self.__priority = value
+
+    priority = property(_get_priority, _set_priority)
+    """
+    Priority for this upload stream. Lower values are higher priority. If not specified it will have the lowest priority.
+    """
+
+    def _get_start_sequence_number(self):
+        return self.__start_sequence_number
+
+    def _set_start_sequence_number(self, value):
+        if value is not None and not isinstance(value, int):
+            raise TypeError("start_sequence_number must be int")
+
+        self.__start_sequence_number = value
+
+    start_sequence_number = property(
+        _get_start_sequence_number, _set_start_sequence_number
+    )
+    """
+    The sequence number of the message to use as the starting message in the export. Default is 0. The sequence number provided should be less than the newest sequence number in the stream, i.e., sequence number of the last messaged appended. To find the newest sequence number, describe the stream and then check the storage status of the returned MessageStreamInfo object.
+    """
+
+    def _get_disabled(self):
+        return self.__disabled
+
+    def _set_disabled(self, value):
+        if value is not None and not isinstance(value, bool):
+            raise TypeError("disabled must be bool")
+
+        self.__disabled = value
+
+    disabled = property(_get_disabled, _set_disabled)
+    """
+    Enable or disable this export. Default is false.
+    """
+
+    @staticmethod
+    def from_dict(d):
+        v = {}
+        if "identifier" in d:
+            v["identifier"] = (
+                str.from_dict(d["identifier"])
+                if hasattr(str, "from_dict")
+                else d["identifier"]
+            )
+        if "batchSize" in d:
+            v["batch_size"] = (
+                int.from_dict(d["batchSize"])
+                if hasattr(int, "from_dict")
+                else d["batchSize"]
+            )
+        if "batchIntervalMillis" in d:
+            v["batch_interval_millis"] = (
+                int.from_dict(d["batchIntervalMillis"])
+                if hasattr(int, "from_dict")
+                else d["batchIntervalMillis"]
+            )
+        if "priority" in d:
+            v["priority"] = (
+                int.from_dict(d["priority"])
+                if hasattr(int, "from_dict")
+                else d["priority"]
+            )
+        if "startSequenceNumber" in d:
+            v["start_sequence_number"] = (
+                int.from_dict(d["startSequenceNumber"])
+                if hasattr(int, "from_dict")
+                else d["startSequenceNumber"]
+            )
+        if "disabled" in d:
+            v["disabled"] = (
+                bool.from_dict(d["disabled"])
+                if hasattr(bool, "from_dict")
+                else d["disabled"]
+            )
+        return IoTSiteWiseConfig(**v)
+
+    def as_dict(self):
+        d = {}
+        if self.__identifier is not None:
+            d["identifier"] = (
+                self.__identifier.as_dict()
+                if hasattr(self.__identifier, "as_dict")
+                else self.__identifier
+            )
+        if self.__batch_size is not None:
+            d["batchSize"] = (
+                self.__batch_size.as_dict()
+                if hasattr(self.__batch_size, "as_dict")
+                else self.__batch_size
+            )
+        if self.__batch_interval_millis is not None:
+            d["batchIntervalMillis"] = (
+                self.__batch_interval_millis.as_dict()
+                if hasattr(self.__batch_interval_millis, "as_dict")
+                else self.__batch_interval_millis
+            )
+        if self.__priority is not None:
+            d["priority"] = (
+                self.__priority.as_dict()
+                if hasattr(self.__priority, "as_dict")
+                else self.__priority
+            )
+        if self.__start_sequence_number is not None:
+            d["startSequenceNumber"] = (
+                self.__start_sequence_number.as_dict()
+                if hasattr(self.__start_sequence_number, "as_dict")
+                else self.__start_sequence_number
+            )
+        if self.__disabled is not None:
+            d["disabled"] = (
+                self.__disabled.as_dict()
+                if hasattr(self.__disabled, "as_dict")
+                else self.__disabled
+            )
+        return d
+
+    def __repr__(self):
+        return "<Class IoTSiteWiseConfig. identifier: {}, batch_size: {}, batch_interval_millis: {}, priority: {}, start_sequence_number: {}, disabled: {}>".format(
+            limitedRepr(
+                self.__identifier[:20]
+                if isinstance(self.__identifier, bytes)
+                else self.__identifier
             ),
             limitedRepr(
                 self.__batch_size[:20]
@@ -7003,25 +7003,6 @@ class TimeInNanos:
         )
 
 
-class Quality(enum.Enum):
-
-    GOOD = "GOOD"
-    BAD = "BAD"
-    UNCERTAIN = "UNCERTAIN"
-
-    @staticmethod
-    def from_dict(d):
-        return Quality(d)
-
-    def as_dict(self):
-        return self.value
-
-    def __repr__(self):
-        return "<Enum Quality. {}: {}>".format(
-            limitedRepr(self.name), limitedRepr(self.value)
-        )
-
-
 class Variant:
     """
     Contains an asset property value (of a single type only).
@@ -7215,6 +7196,24 @@ class Variant:
                 if isinstance(self.__boolean_value, bytes)
                 else self.__boolean_value
             ),
+        )
+
+
+class Quality(enum.Enum):
+    GOOD = "GOOD"
+    BAD = "BAD"
+    UNCERTAIN = "UNCERTAIN"
+
+    @staticmethod
+    def from_dict(d):
+        return Quality(d)
+
+    def as_dict(self):
+        return self.value
+
+    def __repr__(self):
+        return "<Enum Quality. {}: {}>".format(
+            limitedRepr(self.name), limitedRepr(self.value)
         )
 
 

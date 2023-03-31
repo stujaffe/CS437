@@ -18,7 +18,9 @@ from greengrasssdk.utils.testing import mock
 customer_logger = logging.getLogger(__name__)
 customer_logger.propagate = True
 
-valid_base64_regex = '^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$'
+valid_base64_regex = (
+    "^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$"
+)
 
 
 class InvocationException(Exception):
@@ -26,7 +28,7 @@ class InvocationException(Exception):
 
 
 class Client:
-    def __init__(self, endpoint='localhost', port=None):
+    def __init__(self, endpoint="localhost", port=None):
         """
         :param endpoint: Endpoint used to connect to IPC.
         :type endpoint: str
@@ -71,34 +73,44 @@ class Client:
         """
 
         # FunctionName is a required parameter
-        if 'FunctionName' not in kwargs:
+        if "FunctionName" not in kwargs:
             raise ValueError(
                 '"FunctionName" argument of Lambda.Client.invoke is a required argument but was not provided.'
             )
 
-        arn_fields = FunctionArnFields(kwargs['FunctionName'])
+        arn_fields = FunctionArnFields(kwargs["FunctionName"])
         arn_qualifier = arn_fields.qualifier
 
         # A Function qualifier can be provided as part of the ARN in FunctionName, or it can be provided here. The
         # behavior of the cloud is to throw an exception if both are specified but not equal
-        extraneous_qualifier = kwargs.get('Qualifier', '')
+        extraneous_qualifier = kwargs.get("Qualifier", "")
 
-        if extraneous_qualifier and arn_qualifier and arn_qualifier != extraneous_qualifier:
-            raise ValueError('The derived qualifier from the function name does not match the specified qualifier.')
+        if (
+            extraneous_qualifier
+            and arn_qualifier
+            and arn_qualifier != extraneous_qualifier
+        ):
+            raise ValueError(
+                "The derived qualifier from the function name does not match the specified qualifier."
+            )
 
         final_qualifier = arn_qualifier if arn_qualifier else extraneous_qualifier
 
         try:
             # GGC v1.9.0 or newer
-            function_arn = FunctionArnFields.build_function_arn(arn_fields.unqualified_arn, final_qualifier)
+            function_arn = FunctionArnFields.build_function_arn(
+                arn_fields.unqualified_arn, final_qualifier
+            )
         except AttributeError:
             # older GGC version
-            raise AttributeError('class FunctionArnFields has no attribute \'build_function_arn\'. build_function_arn '
-                                 'is introduced in GGC v1.9.0. Please check your GGC version.')
+            raise AttributeError(
+                "class FunctionArnFields has no attribute 'build_function_arn'. build_function_arn "
+                "is introduced in GGC v1.9.0. Please check your GGC version."
+            )
 
         # ClientContext must be base64 if given, but is an option parameter
         try:
-            client_context = kwargs.get('ClientContext', b'').decode()
+            client_context = kwargs.get("ClientContext", b"").decode()
         except AttributeError as e:
             customer_logger.exception(e)
             raise ValueError(
@@ -107,33 +119,48 @@ class Client:
 
         if client_context:
             if not re.match(valid_base64_regex, client_context):
-                raise ValueError('"ClientContext" argument of Lambda.Client.invoke must be base64 encoded.')
+                raise ValueError(
+                    '"ClientContext" argument of Lambda.Client.invoke must be base64 encoded.'
+                )
 
         # Payload is an optional parameter
-        payload = kwargs.get('Payload', b'')
-        invocation_type = kwargs.get('InvocationType', 'RequestResponse')
-        customer_logger.debug('Invoking local lambda "{}" with payload "{}" and client context "{}"'.format(
-            function_arn, payload, client_context))
+        payload = kwargs.get("Payload", b"")
+        invocation_type = kwargs.get("InvocationType", "RequestResponse")
+        customer_logger.debug(
+            'Invoking local lambda "{}" with payload "{}" and client context "{}"'.format(
+                function_arn, payload, client_context
+            )
+        )
 
         # Post the work to IPC and return the result of that work
-        return self._invoke_internal(function_arn, payload, client_context, invocation_type)
+        return self._invoke_internal(
+            function_arn, payload, client_context, invocation_type
+        )
 
     @mock
-    def _invoke_internal(self, function_arn, payload, client_context, invocation_type="RequestResponse"):
+    def _invoke_internal(
+        self, function_arn, payload, client_context, invocation_type="RequestResponse"
+    ):
         """
         This private method is seperate from the main, public invoke method so that other code within this SDK can
         give this Lambda client a raw payload/client context to invoke with, rather than having it built for them.
         This lets you include custom ExtensionMap_ values like subject which are needed for our internal pinned Lambdas.
         """
-        customer_logger.debug('Invoking Lambda function "{}" with Greengrass Message "{}"'.format(function_arn, payload))
+        customer_logger.debug(
+            'Invoking Lambda function "{}" with Greengrass Message "{}"'.format(
+                function_arn, payload
+            )
+        )
 
         try:
-            invocation_id = self.ipc.post_work(function_arn, payload, client_context, invocation_type)
+            invocation_id = self.ipc.post_work(
+                function_arn, payload, client_context, invocation_type
+            )
 
             if invocation_type == "Event":
                 # TODO: Properly return errors based on BOTO response
                 # https://boto3.readthedocs.io/en/latest/reference/services/lambda.html#Lambda.Client.invoke
-                return {'Payload': b'', 'FunctionError': ''}
+                return {"Payload": b"", "FunctionError": ""}
 
             work_result_output = self.ipc.get_work_result(function_arn, invocation_id)
             if not work_result_output.func_err:
@@ -141,13 +168,13 @@ class Client:
             else:
                 output_payload = work_result_output.payload
             invoke_output = {
-                'Payload': output_payload,
-                'FunctionError': work_result_output.func_err,
+                "Payload": output_payload,
+                "FunctionError": work_result_output.func_err,
             }
             return invoke_output
         except IPCException as e:
             customer_logger.exception(e)
-            raise InvocationException('Failed to invoke function due to ' + str(e))
+            raise InvocationException("Failed to invoke function due to " + str(e))
 
 
 class StreamingBody(object):
@@ -155,6 +182,7 @@ class StreamingBody(object):
 
     This provides a consistent interface to AWS Lambda Python SDK
     """
+
     def __init__(self, payload):
         self._raw_stream = BytesIO(payload)
         self._amount_read = 0

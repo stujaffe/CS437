@@ -1,8 +1,3 @@
-"""
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-SPDX-License-Identifier: Apache-2.0
-"""
-
 import asyncio
 import logging
 import os
@@ -38,15 +33,13 @@ from .data import (
     UpdateMessageStreamResponse,
     VersionInfo,
 )
-from .exceptions import ClientException, ConnectFailedException, StreamManagerException, ValidationException
+from .exceptions import (
+    ClientException,
+    ConnectFailedException,
+    StreamManagerException,
+    ValidationException,
+)
 from .utilinternal import UtilInternal
-
-# Version of the Python SDK.
-# NOTE: This version is independent of the StreamManager PROTOCOL_VERSION, which versions the data format
-#  over the wire. When bumping the PROTOCOL_VERSION, consider adding the old version to
-#  __OLD_SUPPORTED_PROTOCOL_VERSIONS list (if you intend to support it). Nothing else is needed to bump
-#  this SDK_VERSION.
-SDK_VERSION = "1.1.1"
 
 
 class StreamManagerClient:
@@ -63,6 +56,11 @@ class StreamManagerClient:
     :raises: :exc:`asyncio.TimeoutError` if the request times out.
     :raises: :exc:`ConnectionError` if the client is unable to connect to the server.
     """
+
+    # Version of the Java SDK.
+    # NOTE: When you bump this version,
+    # consider adding the old version to olderSupportedProtocolVersions list (if you intend to support it)
+    __SDK_VERSION = "1.1.0"
 
     # List of supported protocol protocol.
     # These are meant to be used for graceful degradation if the server does not support the current SDK version.
@@ -107,17 +105,13 @@ class StreamManagerClient:
                 loop.close()
 
         # Making the thread a daemon will kill the thread once the main thread closes
-        self.__event_loop_thread = Thread(target=run_event_loop, args=(self.__loop,), daemon=True)
+        self.__event_loop_thread = Thread(
+            target=run_event_loop, args=(self.__loop,), daemon=True
+        )
         self.__event_loop_thread.start()
 
         self.connected = False
         UtilInternal.sync(self.__connect(), loop=self.__loop)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
 
     async def _close(self):
         if self.__writer is not None:
@@ -144,12 +138,16 @@ class StreamManagerClient:
             return
         try:
             self.logger.debug("Opening connection to %s:%d", self.host, self.port)
-            future = asyncio.open_connection(self.host, self.port)
+            future = asyncio.open_connection(self.host, self.port, loop=self.__loop)
             self.__reader, self.__writer = await asyncio.wait_for(
-                future, timeout=self.connect_timeout
+                future, timeout=self.connect_timeout, loop=self.__loop
             )
 
-            await asyncio.wait_for(self.__connect_request_response(), timeout=self.request_timeout)
+            await asyncio.wait_for(
+                self.__connect_request_response(),
+                timeout=self.request_timeout,
+                loop=self.__loop,
+            )
 
             self.logger.debug("Socket connected successfully. Starting read loop.")
             self.connected = True
@@ -198,7 +196,9 @@ class StreamManagerClient:
                 except asyncio.IncompleteReadError:
                     if self.__closed:
                         return
-                    self.logger.error("Unable to read from socket, likely socket is closed or server died")
+                    self.logger.error(
+                        "Unable to read from socket, likely socket is closed or server died"
+                    )
                     self.connected = False
                     try:
                         await self.__connect()
@@ -223,19 +223,27 @@ class StreamManagerClient:
             await self.__requests[response.request_id].put(response)
         elif response.operation == Operation.CreateMessageStreamResponse:
             response = CreateMessageStreamResponse.from_dict(payload)
-            self.logger.debug("Received CreateMessageStreamResponse from server: %s", response)
+            self.logger.debug(
+                "Received CreateMessageStreamResponse from server: %s", response
+            )
             await self.__requests[response.request_id].put(response)
         elif response.operation == Operation.DeleteMessageStreamResponse:
             response = DeleteMessageStreamResponse.from_dict(payload)
-            self.logger.debug("Received DeleteMessageStreamResponse from server: %s", response)
+            self.logger.debug(
+                "Received DeleteMessageStreamResponse from server: %s", response
+            )
             await self.__requests[response.request_id].put(response)
         elif response.operation == Operation.UpdateMessageStreamResponse:
             response = UpdateMessageStreamResponse.from_dict(payload)
-            self.logger.debug("Received UpdateMessageStreamResponse from server: %s", response)
+            self.logger.debug(
+                "Received UpdateMessageStreamResponse from server: %s", response
+            )
             await self.__requests[response.request_id].put(response)
         elif response.operation == Operation.AppendMessageResponse:
             response = AppendMessageResponse.from_dict(payload)
-            self.logger.debug("Received AppendMessageResponse from server: %s", response)
+            self.logger.debug(
+                "Received AppendMessageResponse from server: %s", response
+            )
             await self.__requests[response.request_id].put(response)
         elif response.operation == Operation.ListStreamsResponse:
             response = ListStreamsResponse.from_dict(payload)
@@ -243,7 +251,9 @@ class StreamManagerClient:
             await self.__requests[response.request_id].put(response)
         elif response.operation == Operation.DescribeMessageStreamResponse:
             response = DescribeMessageStreamResponse.from_dict(payload)
-            self.logger.debug("Received DescribeMessageStreamResponse from server: %s", response)
+            self.logger.debug(
+                "Received DescribeMessageStreamResponse from server: %s", response
+            )
             await self.__requests[response.request_id].put(response)
         elif response.operation == Operation.UnknownOperationError:
             self.logger.error(
@@ -254,7 +264,9 @@ class StreamManagerClient:
             response = UnknownOperationError.from_dict(payload)
             await self.__requests[response.request_id].put(response)
         elif response.operation == Operation.Unknown:
-            self.logger.error("Received response with unknown operation from server: %s", response)
+            self.logger.error(
+                "Received response with unknown operation from server: %s", response
+            )
             try:
                 request_id = cbor2.loads(response.payload)["requestId"]
                 await self.__requests[request_id].put(response)
@@ -264,12 +276,14 @@ class StreamManagerClient:
                 # else we can do at this point
                 pass
         else:
-            self.logger.error("Received data with unhandled operation %s.", response.operation)
+            self.logger.error(
+                "Received data with unhandled operation %s.", response.operation
+            )
 
     async def __connect_request_response(self):
         data = ConnectRequest()
         data.request_id = UtilInternal.get_request_id()
-        data.sdk_version = SDK_VERSION
+        data.sdk_version = self.__SDK_VERSION
         data.other_supported_protocol_versions = self.__OLD_SUPPORTED_PROTOCOL_VERSIONS
         data.protocol_version = VersionInfo.PROTOCOL_VERSION.value
         if self.auth_token is not None:
@@ -278,7 +292,9 @@ class StreamManagerClient:
         # Write the connect version
         self.__writer.write(UtilInternal.int_to_bytes(self.__CONNECT_VERSION, 1))
         # Write request to socket
-        frame = MessageFrame(operation=Operation.Connect, payload=cbor2.dumps(data.as_dict()))
+        frame = MessageFrame(
+            operation=Operation.Connect, payload=cbor2.dumps(data.as_dict())
+        )
         for b in UtilInternal.encode_frame(frame):
             self.__writer.write(b)
         await self.__writer.drain()
@@ -288,10 +304,17 @@ class StreamManagerClient:
         if len(connect_response_version_byte) == 0:
             raise asyncio.IncompleteReadError(connect_response_version_byte, 1)
 
-        connect_response_version = UtilInternal.int_from_bytes(connect_response_version_byte)
+        connect_response_version = UtilInternal.int_from_bytes(
+            connect_response_version_byte
+        )
         if connect_response_version != self.__CONNECT_VERSION:
-            self.logger.error("Unexpected response from the server, Connect version: %s.", connect_response_version)
-            raise ConnectFailedException("Failed to establish connection with the server")
+            self.logger.error(
+                "Unexpected response from the server, Connect version: %s.",
+                connect_response_version,
+            )
+            raise ConnectFailedException(
+                "Failed to establish connection with the server"
+            )
 
         # Read connect response
         response = await self.__read_message_frame()  # type: MessageFrame
@@ -301,19 +324,27 @@ class StreamManagerClient:
             response = ConnectResponse.from_dict(payload)  # type: ConnectResponse
             self.logger.debug("Received ConnectResponse from server: %s", response)
         else:
-            self.logger.error("Received data with unexpected operation %s.", response.operation)
-            raise ConnectFailedException("Failed to establish connection with the server")
+            self.logger.error(
+                "Received data with unexpected operation %s.", response.operation
+            )
+            raise ConnectFailedException(
+                "Failed to establish connection with the server"
+            )
 
         if response.status != ResponseStatusCode.Success:
-            self.logger.error("Received ConnectResponse with unexpected status %s.", response.status)
-            raise ConnectFailedException("Failed to establish connection with the server")
+            self.logger.error(
+                "Received ConnectResponse with unexpected status %s.", response.status
+            )
+            raise ConnectFailedException(
+                "Failed to establish connection with the server"
+            )
 
         if data.protocol_version != response.protocol_version:
             self.logger.warn(
                 "SDK with version %s using Protocol version %s is not fully compatible with Server with version %s. "
                 "Client has connected in a compatibility mode using protocol version %s. "
                 "Some features will not work as expected",
-                SDK_VERSION,
+                self.__SDK_VERSION,
                 data.protocol_version,
                 response.server_version,
                 response.protocol_version,
@@ -335,7 +366,9 @@ class StreamManagerClient:
             self.__requests[data.request_id] = asyncio.Queue(1)
 
             # Write request to socket
-            frame = MessageFrame(operation=operation, payload=cbor2.dumps(data.as_dict()))
+            frame = MessageFrame(
+                operation=operation, payload=cbor2.dumps(data.as_dict())
+            )
             for b in UtilInternal.encode_frame(frame):
                 self.__writer.write(b)
             await self.__writer.drain()
@@ -344,13 +377,20 @@ class StreamManagerClient:
             result = await self.__requests[data.request_id].get()
             # Drop async queue from request map
             del self.__requests[data.request_id]
-            if isinstance(result, MessageFrame) and result.operation == Operation.Unknown:
-                raise ClientException("Received response with unknown operation from server")
+            if (
+                isinstance(result, MessageFrame)
+                and result.operation == Operation.Unknown
+            ):
+                raise ClientException(
+                    "Received response with unknown operation from server"
+                )
             return result
 
         # Perform the actual work as async so that we can put a timeout on the whole operation
         try:
-            return await asyncio.wait_for(inner(operation, data), timeout=self.request_timeout)
+            return await asyncio.wait_for(
+                inner(operation, data), timeout=self.request_timeout, loop=self.__loop
+            )
         except asyncio.TimeoutError:
             # Drop async queue from request map
             del self.__requests[data.request_id]
@@ -359,7 +399,9 @@ class StreamManagerClient:
     def __validate_read_message_options(self, options: Optional[ReadMessagesOptions]):
         if options is not None:
             if not isinstance(options, ReadMessagesOptions):
-                raise ValidationException("options argument to read_messages must be a ReadMessageOptions object")
+                raise ValidationException(
+                    "options argument to read_messages must be a ReadMessageOptions object"
+                )
             validation = UtilInternal.is_invalid(options)
             if validation:
                 raise ValidationException(validation)
@@ -368,8 +410,13 @@ class StreamManagerClient:
                 and options.max_message_count is not None
                 and options.min_message_count > options.max_message_count
             ):
-                raise ValidationException("min_message_count must be less than or equal to max_message_count")
-            if options.read_timeout_millis is not None and options.read_timeout_millis > self.request_timeout * 1000:
+                raise ValidationException(
+                    "min_message_count must be less than or equal to max_message_count"
+                )
+            if (
+                options.read_timeout_millis is not None
+                and options.read_timeout_millis > self.request_timeout * 1000
+            ):
                 raise ValidationException(
                     "read_timeout_millis must be less than or equal to the client's request_timeout"
                 )
@@ -385,7 +432,9 @@ class StreamManagerClient:
 
     async def _create_message_stream(self, definition: MessageStreamDefinition) -> None:
         if not isinstance(definition, MessageStreamDefinition):
-            raise ValidationException("definition argument to create_stream must be a MessageStreamDefinition object")
+            raise ValidationException(
+                "definition argument to create_stream must be a MessageStreamDefinition object"
+            )
         create_stream_request = CreateMessageStreamRequest(definition=definition)
         create_stream_response = await self.__send_and_receive(
             Operation.CreateMessageStream, data=create_stream_request
@@ -413,9 +462,13 @@ class StreamManagerClient:
 
         UtilInternal.raise_on_error_response(update_stream_response)
 
-    async def _read_messages(self, stream_name: str, options: ReadMessagesOptions = None) -> List[Message]:
+    async def _read_messages(
+        self, stream_name: str, options: ReadMessagesOptions = None
+    ) -> List[Message]:
         self.__validate_read_message_options(options)
-        read_messages_request = ReadMessagesRequest(stream_name=stream_name, read_messages_options=options)
+        read_messages_request = ReadMessagesRequest(
+            stream_name=stream_name, read_messages_options=options
+        )
         read_messages_response = await self.__send_and_receive(
             Operation.ReadMessages, data=read_messages_request
         )  # type: ReadMessagesResponse
@@ -433,7 +486,8 @@ class StreamManagerClient:
 
     async def _describe_message_stream(self, stream_name: str) -> MessageStreamInfo:
         describe_message_stream_response = await self.__send_and_receive(
-            Operation.DescribeMessageStream, data=DescribeMessageStreamRequest(name=stream_name)
+            Operation.DescribeMessageStream,
+            data=DescribeMessageStreamRequest(name=stream_name),
         )  # type: DescribeMessageStreamResponse
         UtilInternal.raise_on_error_response(describe_message_stream_response)
 
@@ -442,7 +496,9 @@ class StreamManagerClient:
     ####################
     #    PUBLIC API    #
     ####################
-    def read_messages(self, stream_name: str, options: Optional[ReadMessagesOptions] = None) -> List[Message]:
+    def read_messages(
+        self, stream_name: str, options: Optional[ReadMessagesOptions] = None
+    ) -> List[Message]:
         """
         Read message(s) from a chosen stream with options. If no options are specified it will try to read
         1 message from the stream.
@@ -465,7 +521,9 @@ class StreamManagerClient:
         :raises: :exc:`ConnectionError` if the client is unable to reconnect to the server.
         """
         self.__check_closed()
-        return UtilInternal.sync(self._read_messages(stream_name, options), loop=self.__loop)
+        return UtilInternal.sync(
+            self._read_messages(stream_name, options), loop=self.__loop
+        )
 
     def append_message(self, stream_name: str, data: bytes) -> int:
         """
@@ -480,7 +538,9 @@ class StreamManagerClient:
         :raises: :exc:`ConnectionError` if the client is unable to reconnect to the server.
         """
         self.__check_closed()
-        return UtilInternal.sync(self._append_message(stream_name, data), loop=self.__loop)
+        return UtilInternal.sync(
+            self._append_message(stream_name, data), loop=self.__loop
+        )
 
     def create_message_stream(self, definition: MessageStreamDefinition) -> None:
         """
@@ -493,7 +553,9 @@ class StreamManagerClient:
         :raises: :exc:`ConnectionError` if the client is unable to reconnect to the server.
         """
         self.__check_closed()
-        return UtilInternal.sync(self._create_message_stream(definition), loop=self.__loop)
+        return UtilInternal.sync(
+            self._create_message_stream(definition), loop=self.__loop
+        )
 
     def delete_message_stream(self, stream_name: str) -> None:
         """
@@ -507,7 +569,9 @@ class StreamManagerClient:
         :raises: :exc:`ConnectionError` if the client is unable to reconnect to the server.
         """
         self.__check_closed()
-        return UtilInternal.sync(self._delete_message_stream(stream_name), loop=self.__loop)
+        return UtilInternal.sync(
+            self._delete_message_stream(stream_name), loop=self.__loop
+        )
 
     def update_message_stream(self, definition: MessageStreamDefinition) -> None:
         """
@@ -521,7 +585,9 @@ class StreamManagerClient:
         :raises: :exc:`ConnectionError` if the client is unable to reconnect to the server.
         """
         self.__check_closed()
-        return UtilInternal.sync(self._update_message_stream(definition), loop=self.__loop)
+        return UtilInternal.sync(
+            self._update_message_stream(definition), loop=self.__loop
+        )
 
     def list_streams(self) -> List[str]:
         """
@@ -547,7 +613,9 @@ class StreamManagerClient:
         :raises: :exc:`ConnectionError` if the client is unable to reconnect to the server.
         """
         self.__check_closed()
-        return UtilInternal.sync(self._describe_message_stream(stream_name), loop=self.__loop)
+        return UtilInternal.sync(
+            self._describe_message_stream(stream_name), loop=self.__loop
+        )
 
     def close(self):
         """

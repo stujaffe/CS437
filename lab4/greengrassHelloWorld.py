@@ -41,13 +41,16 @@ def greengrass_hello_world_run():
     try:
         if not my_platform:
             client.publish(
-                topic="hello/world", queueFullPolicy="AllOrException", payload="Hello world! Sent from Greengrass Core."
+                topic="hello/world",
+                queueFullPolicy="AllOrException",
+                payload="Hello world! Sent from Greengrass Core.",
             )
         else:
             client.publish(
                 topic="hello/world",
                 queueFullPolicy="AllOrException",
-                payload="Hello world! Sent from " "Greengrass Core running on platform: {}".format(my_platform),
+                payload="Hello world! Sent from "
+                "Greengrass Core running on platform: {}".format(my_platform),
             )
     except Exception as e:
         logger.error("Failed to publish message: " + repr(e))

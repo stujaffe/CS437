@@ -1,8 +1,3 @@
-"""
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-SPDX-License-Identifier: Apache-2.0
-"""
-
 import asyncio
 import json
 import re
@@ -47,7 +42,6 @@ class UtilInternal:
 
     @staticmethod
     def del_empty_arrays(d):
-
         for key, value in list(d.items()):
             if isinstance(value, list) and len(value) == 0:
                 del d[key]
@@ -63,7 +57,9 @@ class UtilInternal:
 
     @staticmethod
     def int_to_bytes(i, length=4):
-        return int.to_bytes(i, length=length, byteorder=UtilInternal.__ENDIAN, signed=True)
+        return int.to_bytes(
+            i, length=length, byteorder=UtilInternal.__ENDIAN, signed=True
+        )
 
     @staticmethod
     def int_from_bytes(b):
@@ -101,7 +97,9 @@ class UtilInternal:
                 for i, v in enumerate(getattr(o, prop_name)):
                     result = UtilInternal.is_invalid(v)
                     if result:
-                        return "Property {}[{}] is invalid because {}".format(prop_name, i, result)
+                        return "Property {}[{}] is invalid because {}".format(
+                            prop_name, i, result
+                        )
 
             # Recurse down to check validity of objects within objects
             result = UtilInternal.is_invalid(getattr(o, prop_name))
@@ -109,7 +107,11 @@ class UtilInternal:
                 return "Property {} is invalid because {}".format(prop_name, result)
 
             # Validate the property
-            if "required" in validations and validations["required"] and getattr(o, prop_name) is None:
+            if (
+                "required" in validations
+                and validations["required"]
+                and getattr(o, prop_name) is None
+            ):
                 return "Property {} is required, but was None".format(prop_name)
             if (
                 "minLength" in validations
@@ -148,27 +150,35 @@ class UtilInternal:
                 and getattr(o, prop_name) is not None
                 and getattr(o, prop_name) > validations["maximum"]
             ):
-                return "Property {} must be at most {}".format(prop_name, validations["maximum"])
+                return "Property {} must be at most {}".format(
+                    prop_name, validations["maximum"]
+                )
             if (
                 "minimum" in validations
                 and getattr(o, prop_name) is not None
                 and getattr(o, prop_name) < validations["minimum"]
             ):
-                return "Property {} must be at least {}".format(prop_name, validations["minimum"])
+                return "Property {} must be at least {}".format(
+                    prop_name, validations["minimum"]
+                )
             if (
                 "pattern" in validations
                 and getattr(o, prop_name) is not None
                 and re.fullmatch(validations["pattern"], getattr(o, prop_name)) is None
             ):
-                return "Property {} must match regex {}".format(prop_name, validations["pattern"])
+                return "Property {} must match regex {}".format(
+                    prop_name, validations["pattern"]
+                )
 
         for prop_name, types in o._types_map.items():
             # Validate all properties with their respective types
             if "type" in types and getattr(o, prop_name) is not None:
                 result = isinstance(getattr(o, prop_name), types["type"])
                 if not result:
-                    return "Property {} is invalid because it must be of type {}".format(
-                        prop_name, types["type"].__name__
+                    return (
+                        "Property {} is invalid because it must be of type {}".format(
+                            prop_name, types["type"].__name__
+                        )
                     )
                 if types["type"] == list and "subtype" in types:
                     for i, v in enumerate(getattr(o, prop_name)):
@@ -185,32 +195,60 @@ class UtilInternal:
         if response.status == ResponseStatusCode.Success:
             return
         elif response.status == ResponseStatusCode.InvalidRequest:
-            raise InvalidRequestException(response.error_message, response.status, response.request_id)
+            raise InvalidRequestException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.RequestPayloadTooLarge:
-            raise RequestPayloadTooLargeException(response.error_message, response.status, response.request_id)
+            raise RequestPayloadTooLargeException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.ResourceNotFound:
-            raise ResourceNotFoundException(response.error_message, response.status, response.request_id)
+            raise ResourceNotFoundException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.ResponsePayloadTooLarge:
-            raise ResponsePayloadTooLargeException(response.error_message, response.status, response.request_id)
+            raise ResponsePayloadTooLargeException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.ServerTimeout:
-            raise ServerTimeoutException(response.error_message, response.status, response.request_id)
+            raise ServerTimeoutException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.Unauthorized:
-            raise UnauthorizedException(response.error_message, response.status, response.request_id)
+            raise UnauthorizedException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.UnknownFailure:
-            raise UnknownFailureException(response.error_message, response.status, response.request_id)
+            raise UnknownFailureException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.NotEnoughMessages:
-            raise NotEnoughMessagesException(response.error_message, response.status, response.request_id)
+            raise NotEnoughMessagesException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.MessageStoreReadError:
-            raise MessageStoreReadErrorException(response.error_message, response.status, response.request_id)
+            raise MessageStoreReadErrorException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.OutOfMemoryError:
-            raise ServerOutOfMemoryException(response.error_message, response.status, response.request_id)
+            raise ServerOutOfMemoryException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.UpdateFailed:
-            raise UpdateFailedException(response.error_message, response.status, response.request_id)
+            raise UpdateFailedException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.UpdateNotAllowed:
-            raise UpdateNotAllowedException(response.error_message, response.status, response.request_id)
+            raise UpdateNotAllowedException(
+                response.error_message, response.status, response.request_id
+            )
         elif response.status == ResponseStatusCode.UnknownOperation:
-            raise UnknownOperationException(response.error_message, response.status, response.request_id)
+            raise UnknownOperationException(
+                response.error_message, response.status, response.request_id
+            )
         else:
             raise StreamManagerException(
-                "Client is not able to understand this server response status code", "Unrecognized", response.request_id
+                "Client is not able to understand this server response status code",
+                "Unrecognized",
+                response.request_id,
             )

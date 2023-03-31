@@ -17,12 +17,12 @@ from greengrass_common.env_vars import MY_FUNCTION_ARN, SECRETS_MANAGER_FUNCTION
 customer_logger = logging.getLogger(__name__)
 customer_logger.propagate = True
 
-KEY_NAME_PAYLOAD = 'Payload'
-KEY_NAME_STATUS = 'Status'
-KEY_NAME_MESSAGE = 'Message'
-KEY_NAME_SECRET_ID = 'SecretId'
-KEY_NAME_VERSION_ID = 'VersionId'
-KEY_NAME_VERSION_STAGE = 'VersionStage'
+KEY_NAME_PAYLOAD = "Payload"
+KEY_NAME_STATUS = "Status"
+KEY_NAME_MESSAGE = "Message"
+KEY_NAME_SECRET_ID = "SecretId"
+KEY_NAME_VERSION_ID = "VersionId"
+KEY_NAME_VERSION_STAGE = "VersionStage"
 KEY_NAME_CREATED_DATE = "CreatedDate"
 
 
@@ -96,28 +96,33 @@ class Client:
         """
 
         secret_id = self._get_required_parameter(KEY_NAME_SECRET_ID, **kwargs)
-        version_id = kwargs.get(KEY_NAME_VERSION_ID, '')
-        version_stage = kwargs.get(KEY_NAME_VERSION_STAGE, '')
+        version_id = kwargs.get(KEY_NAME_VERSION_ID, "")
+        version_stage = kwargs.get(KEY_NAME_VERSION_STAGE, "")
 
         if version_id:  # TODO: Remove this once we support query by VersionId
-            raise SecretsManagerError('Query by VersionId is not yet supported')
+            raise SecretsManagerError("Query by VersionId is not yet supported")
         if version_id and version_stage:
-            raise ValueError('VersionId and VersionStage cannot both be specified at the same time')
+            raise ValueError(
+                "VersionId and VersionStage cannot both be specified at the same time"
+            )
 
-        request_payload_bytes = self._generate_request_payload_bytes(secret_id=secret_id,
-                                                                     version_id=version_id,
-                                                                     version_stage=version_stage)
+        request_payload_bytes = self._generate_request_payload_bytes(
+            secret_id=secret_id, version_id=version_id, version_stage=version_stage
+        )
 
-        customer_logger.debug('Retrieving secret value with id "{}", version id "{}"  version stage "{}"'
-                              .format(secret_id, version_id, version_stage))
+        customer_logger.debug(
+            'Retrieving secret value with id "{}", version id "{}"  version stage "{}"'.format(
+                secret_id, version_id, version_stage
+            )
+        )
         response = self.lambda_client._invoke_internal(
             SECRETS_MANAGER_FUNCTION_ARN,
             request_payload_bytes,
-            b'',  # We do not need client context for Secrets Manager back-end lambda
+            b"",  # We do not need client context for Secrets Manager back-end lambda
         )  # Use Request/Response here as we are mimicking boto3 Http APIs for SecretsManagerService
 
         payload = response[KEY_NAME_PAYLOAD].read()
-        payload_dict = json.loads(payload.decode('utf-8'))
+        payload_dict = json.loads(payload.decode("utf-8"))
 
         # All customer facing errors are presented within the response payload. For example:
         # {
@@ -125,14 +130,17 @@ class Client:
         #     "message": "Resource not found"
         # }
         if KEY_NAME_STATUS in payload_dict and KEY_NAME_MESSAGE in payload_dict:
-            raise SecretsManagerError('Request for secret value returned error code {} with message {}'.format(
-                payload_dict[KEY_NAME_STATUS], payload_dict[KEY_NAME_MESSAGE]
-            ))
+            raise SecretsManagerError(
+                "Request for secret value returned error code {} with message {}".format(
+                    payload_dict[KEY_NAME_STATUS], payload_dict[KEY_NAME_MESSAGE]
+                )
+            )
 
         # Time is serialized as epoch timestamp (int) upon IPC routing. We need to deserialize it back to datetime object in Python
         payload_dict[KEY_NAME_CREATED_DATE] = datetime.fromtimestamp(
             # Cloud response contains timestamp in milliseconds while datetime.fromtimestamp is expecting seconds
-            payload_dict[KEY_NAME_CREATED_DATE] / 1000
+            payload_dict[KEY_NAME_CREATED_DATE]
+            / 1000
         )
 
         return payload_dict
@@ -154,7 +162,9 @@ class Client:
     @staticmethod
     def _get_required_parameter(parameter_name, **kwargs):
         if parameter_name not in kwargs:
-            raise ValueError('Parameter "{parameter_name}" is a required parameter but was not provided.'.format(
-                parameter_name=parameter_name
-            ))
+            raise ValueError(
+                'Parameter "{parameter_name}" is a required parameter but was not provided.'.format(
+                    parameter_name=parameter_name
+                )
+            )
         return kwargs[parameter_name]

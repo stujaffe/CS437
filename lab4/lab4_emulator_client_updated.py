@@ -15,14 +15,14 @@ IOT_ENDPOINT = os.environ.get("IOT_ENDPOINT")
 # TODO 1: modify the following parameters
 # Starting and end index, modify this with the number of deivces you created
 device_st = 0
-device_end = 10
+device_end = 5
 
 # Path to the vehicle dataset
 data_path = "vehicle_data/vehicle{}.csv"
 
 # Path to your certificates
-certificate_formatter = "./certificates/device_{}_certificate.pem"
-key_formatter = "./certificates/device_{}_private.key"
+certificate_formatter = "./certificates_things/device_{}.certificate.pem"
+key_formatter = "./certificates_things/device_{}.private.key"
 
 
 class MQTTClient:
@@ -34,7 +34,9 @@ class MQTTClient:
         # TODO 2: modify your broker address
         # endpoint at: https://us-east-1.console.aws.amazon.com/iot/home?region=us-east-1#/settings
         self.client.configureEndpoint(IOT_ENDPOINT, 8883)
-        self.client.configureCredentials("./certificate_root/AmazonRootCA1.pem", key, cert)
+        self.client.configureCredentials(
+            "./certificate_root/AmazonRootCA1.pem", key, cert
+        )
         self.client.configureOfflinePublishQueueing(
             -1
         )  # Infinite offline Publish queueing
