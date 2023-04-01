@@ -16,7 +16,7 @@ vehicle_emissions = {}
 
 NUM_VEHICLES = 5
 for i in range(NUM_VEHICLES):
-    vehicle_emissions[f"vehicle_{i}"] = 0
+    vehicle_emissions["vehicle_{}".format(i)] = 0
 
 
 # Counter
@@ -43,20 +43,20 @@ def lambda_handler(event, context):
 
         # TODO2: Calculate max CO2 emission
         # get the max emissions for this vehicle_id
-        vehicle_emissions[f"vehicle_{vehicle_id}"] = max(
-            vehicle_data, vehicle_emissions.get(f"vehicle_{vehicle_id}", 0)
+        vehicle_emissions["vehicle_{}".format(vehicle_id)] = max(
+            float(vehicle_data), float(vehicle_emissions.get("vehicle_{}".format(vehicle_id), 0))
         )
 
         # TODO3: Return the result
         # result for all the vehicles
         client.publish(
-            topic=f"emissions/max_CO2/vehicle_{vehicle_id}",
+            topic="emissions/max_CO2/vehicle_{}".format(vehicle_id),
             payload=json.dumps(
                 {
-                    "message": "These the max emissions.",
+                    "message": "Max CO2 emissions.",
                     "vehicle_id": vehicle_id,
                     "counter": my_counter,
-                    "max_CO2": vehicle_emissions.get(f"vehicle_{vehicle_id}", -999),
+                    "max_CO2": vehicle_emissions.get("vehicle_{}".format(vehicle_id), -999),
                 }
             ),
         )
@@ -64,6 +64,6 @@ def lambda_handler(event, context):
         my_counter += 1
 
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
+        logger.error("An error occurred: {}".format(e))
 
     return

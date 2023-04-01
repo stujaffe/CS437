@@ -15,7 +15,7 @@
 
 # Substantially taken from basicDiscovery.py
 
-# python3 emission_emulator.py --endpoint a1kaeb6ryl4498-ats.iot.us-east-1.amazonaws.com --thingName device_0 --vehicleID 0
+# python3 emission_emulator.py --endpoint a1kaeb6ryl4498-ats.iot.us-east-1.amazonaws.com --thingName device_0 --vehicleID 0 --mode subscribe
 
 import os
 import sys
@@ -36,6 +36,8 @@ import re
 def customOnMessage(message):
     print("Received message on topic %s: %s\n" % (message.topic, message.payload))
 """
+
+AllowedActions = ['both', 'publish', 'subscribe']
 
 MAX_DISCOVERY_RETRIES = 10
 GROUP_CA_PATH = "./groupCA/"
@@ -61,6 +63,8 @@ parser.add_argument(
 parser.add_argument(
     "--vehicleID", action="store", dest="vehicleID", help="ID of vehicle (0 to 4)"
 )
+parser.add_argument("-m", "--mode", action="store", dest="mode", default="both",
+                    help="Operation modes: %s"%str(AllowedActions))
 # --print_discover_resp_only used for delopyment testing. The test run will return 0 as long as the SDK installed correctly.
 parser.add_argument(
     "-p",
@@ -85,7 +89,7 @@ privateKeyPath = f"./certificates_things/device_{vehicle_id}.private.key"
 # Publish and Subscribe topics
 # The vehicles/devices will publish to topic_publish and the lambda function are subscribed to topic_publish
 # The lambda function will publish to topic_subscribe and the vehicles/devices are subscribed to topic_subscribe
-topic_publish = f"emissions/data/vehicle_{vehicle_id}"
+topic_publish = f"emissions/data/vehicle"
 topic_subscribe = f"emissions/max_CO2/vehicle_{vehicle_id}"
 
 # Get the vehicle CSV data
@@ -194,7 +198,7 @@ if not connected:
     sys.exit(-2)
 
 
-def subscribe_callback(message):
+def subscribe_callback(client, userdata, message):
     print(f"Received message. Max CO2 reading for vehicle_{vehicle_id} is {message.payload}.")
 
 def extract_numbers_from_end(input_string):
@@ -209,21 +213,25 @@ def extract_numbers_from_end(input_string):
 print(f"Begin process for vehicle_{vehicle_id}.")
 
 # Subscribe the vehicle/device to the lambda function max CO2 topic
-myAWSIoTMQTTClient.subscribe(topic_subscribe, 0, subscribe_callback)
+if args.mode == 'both' or args.mode == 'subscribe':
+    myAWSIoTMQTTClient.subscribe(topic_subscribe, 0, subscribe_callback)
+    print(f"Subscribed to {topic_subscribe}")
 
-with open(vehicle_data) as f:
-    dict_reader = DictReader(f)
-    # each row in dict_reader is a dictionary with column names as keys and column values as values
-    for row in dict_reader:
-        co2 = row.get("vehicle_CO2")
-        vid = row.get("vehicle_id")
-        # the vehicle_id in the CSV files is "vehx" (e.g. "veh1") so extract the numbers since the lambda function expects just the number
-        vid = str(extract_numbers_from_end(vid))
-        message = json.dumps({"vehicle_id":vid, "vehicle_CO2": co2})
-        # publish the CO2 data so the lambda function can process it
-        myAWSIoTMQTTClient.publish(topic_publish, message, 0)
-        print(f"Action: Publish. Vehicle: vehicle_{vid}. Topic: {topic_publish}. Message: {str(message)}")
-        time.sleep(1)
+
+if args.mode == 'both' or args.mode == 'publish':
+    with open(vehicle_data) as f:
+        dict_reader = DictReader(f)
+        # each row in dict_reader is a dictionary with column names as keys and column values as values
+        for row in dict_reader:
+            vid = row.get("vehicle_id")
+            # the vehicle_id in the CSV files is "vehx" (e.g. "veh1") so extract the numbers since the lambda function expects just the number
+            vid = str(extract_numbers_from_end(vid))
+            row["vehicle_id_num"] = vid
+            message = json.dumps(row)
+            # publish the CO2 data so the lambda function can process it
+            myAWSIoTMQTTClient.publishAsync(topic_publish, message, 0)
+            print(f"Action: Publish. Vehicle: vehicle_{vid}. Topic: {topic_publish}. Message: {str(message)}")
+            time.sleep(1)
 
 
 print(f"End process for vehicle_{vehicle_id}.")
