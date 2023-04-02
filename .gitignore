@@ -1,2 +1,9 @@
 .vscode/*
 *.DS_Store
+.env
+lab2/node_modules/*
+*.key
+*.pem
+*.pyc
+*.csv
+*.zip
