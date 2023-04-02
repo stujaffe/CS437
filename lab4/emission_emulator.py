@@ -15,8 +15,6 @@
 
 # Substantially taken from basicDiscovery.py
 
-# python3 emission_emulator.py --endpoint a1kaeb6ryl4498-ats.iot.us-east-1.amazonaws.com --thingName device_0 --vehicleID 0 --mode subscribe
-
 import os
 import sys
 import time
@@ -197,6 +195,9 @@ if not connected:
     print("Cannot connect to core %s. Exiting..." % coreInfo.coreThingArn)
     sys.exit(-2)
 
+########################################################################################################################################################################################
+# Start parsing vehicle data
+########################################################################################################################################################################################
 
 def subscribe_callback(client, userdata, message):
     print(f"Received message. Max CO2 reading for vehicle_{vehicle_id} is {message.payload}.")
@@ -209,7 +210,6 @@ def extract_numbers_from_end(input_string):
     else:
         return None
 
-# Start parsing vehicle data
 print(f"Begin process for vehicle_{vehicle_id}.")
 
 # Subscribe the vehicle/device to the lambda function max CO2 topic
