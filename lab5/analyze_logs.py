@@ -25,6 +25,9 @@ if __name__ == "__main__":
     # Group the data by animal_id
     groups = df_logs.groupby("animal_id")
 
+    # Initialize an empty DataFrame to store combined data
+    combined_df = pd.DataFrame()
+
 
     ##########################################################################################################################################################################
     # CDF plot
@@ -43,20 +46,22 @@ if __name__ == "__main__":
         group["speed"] = group["distance_m"]/group["time_diff_sec"]
         group["speed"] = group["speed"].fillna(0)
 
-        # Calculate the PDF (histogram) of the speed Series with 100 bins
-        pdf, bin_edges = np.histogram(group["speed"], bins=100, density=True)
+        # Append group data to combined_df
+        combined_df = pd.concat([combined_df, group], ignore_index=True)
 
-        # Calculate the CDF by cumulatively summing the PDF values
-        cdf = np.cumsum(pdf * np.diff(bin_edges))
 
-        # Plot the CDF of speeds
-        plt.plot(bin_edges[1:], cdf, label=name)
+    # Calculate the PDF (histogram) of the speed Series with 100 bins
+    pdf, bin_edges = np.histogram(combined_df["speed"], bins=100, density=True)
 
+    # Calculate the CDF by cumulatively summing the PDF values
+    cdf = np.cumsum(pdf * np.diff(bin_edges))
+
+    # Plot the CDF of speeds
+    plt.plot(bin_edges[1:], cdf)
 
     plt.xlabel("Speed")
     plt.ylabel("Cumulative Probability")
     plt.title("Speed CDFs For Zebras")
-    plt.legend()
     plt.savefig(f"{VISUALS_DIR}zebra_speed_cdf.png")
     plt.close()
 
@@ -87,7 +92,7 @@ if __name__ == "__main__":
     ##########################################################################################################################################################################
 
     fig, ax = plt.subplots()
-    for animal_name, group in groups:
+    for name, group in groups:
         # Time difference between consecutive rows now the data are sorted
         group["time_diff_sec"] = group["timestamp"].diff()
         group["latitude_shift"] = group["latitude"].shift(1)
@@ -96,9 +101,32 @@ if __name__ == "__main__":
                                                 row["latitude_shift"], row["longitude_shift"]), axis=1)
         group["speed"] = group["distance_m"]/group["time_diff_sec"]
         group["speed"] = group["speed"].fillna(0)
-        ax.scatter(group['speed'], group['heart_rate'], label=animal_name)
         
-    ax.set_xlabel('Speed')
-    ax.set_ylabel('Heart Rate')
-    ax.legend(title='Animal Name')
-    plt.show()
+        ax.scatter(group["speed"], group["heart_rate"], label=name)
+        
+    ax.set_xlabel("Speed")
+    ax.set_ylabel("Heart Rate")
+    ax.legend(title="Animal Name")
+    # Save the plot
+    plt.savefig(f"{VISUALS_DIR}zebra_speed_heartrate.png")
+    plt.close()
+
+    ##########################################################################################################################################################################
+    # Location vs Temp
+    ##########################################################################################################################################################################
+
+    fig, ax = plt.subplots()
+
+    # Plot the data using the temperature as a color map
+    scatter = ax.scatter(df_logs["longitude"], df_logs["latitude"], c=df_logs["temperature"], cmap="coolwarm", alpha=0.7)
+
+    # Add a color bar to show the temperature scale
+    cbar = plt.colorbar(scatter, ax=ax)
+    cbar.set_label("Temperature")
+
+    ax.set_xlabel("X Coordinate")
+    ax.set_ylabel("Y Coordinate")
+    plt.title("Temperature Distribution by Location")
+    # Save the plot
+    plt.savefig(f"{VISUALS_DIR}zebra_temp_location.png")
+    plt.close()
