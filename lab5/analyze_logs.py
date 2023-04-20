@@ -81,8 +81,9 @@ if __name__ == "__main__":
     ax.set_xlabel("X Coordinate")
     ax.set_ylabel("Y Coordinate")
     ax.set_zlabel("Timestamp")
-    ax.legend()
+    ax.legend(bbox_to_anchor=(-0.4, 1), loc='upper left', borderaxespad=0)
 
+    plt.title("Zebra Location Through Time")
     # Save the plot
     plt.savefig(f"{VISUALS_DIR}zebra_coordinates.png")
     plt.close()
