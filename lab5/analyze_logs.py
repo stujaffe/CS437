@@ -107,6 +107,7 @@ if __name__ == "__main__":
     ax.set_xlabel("Speed")
     ax.set_ylabel("Heart Rate")
     ax.legend(title="Animal Name")
+    plt.title("Zebra Speed vs Heart Rate")
     # Save the plot
     plt.savefig(f"{VISUALS_DIR}zebra_speed_heartrate.png")
     plt.close()
