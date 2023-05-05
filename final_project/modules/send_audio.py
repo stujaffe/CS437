@@ -38,7 +38,9 @@ def create_payload(api_token: str, audio_data: Union[str, bytes]) -> Tuple[dict,
 def send_api_request(
     data: dict, files: dict, url: str = "https://api.audd.io/"
 ) -> dict:
+    
     response = requests.post(url, data=data, files=files)
+    
     result = json.loads(response.text)
 
     return result
