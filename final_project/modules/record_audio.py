@@ -11,8 +11,8 @@ from pydub import AudioSegment
 def record_audio(
     audio_format,
     chunk: int = 1024,
-    channels: int = 1,
-    rate: int = 44100,
+    channels: int = 2,
+    rate: int = 48000,
     duration: int = 10,
 ) -> List[bytes]:
     """
@@ -20,9 +20,15 @@ def record_audio(
     common to audio recording. Returns a list of chunked audio recordings in the form of bytes.
     """
     p = pyaudio.PyAudio()
-    
-    stream = p.open(format=audio_format,channels=channels,rate=rate,input=True,frames_per_buffer=chunk)
-    
+
+    stream = p.open(
+        format=audio_format,
+        channels=channels,
+        rate=rate,
+        input=True,
+        frames_per_buffer=chunk,
+    )
+
     print(f"Recording audio for {duration} seconds...")
 
     frame_list = []
@@ -39,7 +45,7 @@ def record_audio(
 
 
 def encode_audio_mp3(
-    frame_list: List[bytes], audio_format, channels: int = 1, rate: int = 44100
+    frame_list: List[bytes], audio_format, channels: int = 2, rate: int = 48000
 ) -> bytes:
     """
     Encodes a list of byte audio data into MP3 format in the form of bytes.

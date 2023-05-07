@@ -6,8 +6,44 @@
         "album": "Brightest Lights",
         "release_date": "2020-01-10",
         "label": "This Never Happened",
-        "timecode": "00:40",
+        "timecode": "00:27",
         "song_link": "https://lis.tn/QbvNNK",
+        "apple_music": {
+            "previews": [
+                {
+                    "url": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview125/v4/9d/d2/3d/9dd23d28-13ea-3e86-4353-d707e948adfa/mzaf_10864736401112255826.plus.aac.p.m4a"
+                }
+            ],
+            "artwork": {
+                "width": 3000,
+                "height": 3000,
+                "url": "https://is5-ssl.mzstatic.com/image/thumb/Music125/v4/9c/9b/93/9c9b931a-bf4d-f51b-def4-7d7ea41bfa29/5039060434796.png/{w}x{h}bb.jpg",
+                "bgColor": "01152e",
+                "textColor1": "fffdfe",
+                "textColor2": "c4d3a8",
+                "textColor3": "ccced4",
+                "textColor4": "9dad90"
+            },
+            "artistName": "Lane 8",
+            "url": "https://music.apple.com/us/album/road-feat-arctic-lake/1478435610?app=music&at=1000l33QU&i=1478435612&mt=1",
+            "discNumber": 1,
+            "genreNames": [
+                "Dance",
+                "Music",
+                "Electronic"
+            ],
+            "durationInMillis": 238033,
+            "releaseDate": "2020-01-10",
+            "name": "Road (feat. Arctic Lake)",
+            "isrc": "GBEWA1902991",
+            "albumName": "Brightest Lights",
+            "playParams": {
+                "id": "1478435612",
+                "kind": "song"
+            },
+            "trackNumber": 2,
+            "composerName": "Andy Richmond, Paul Holliman, Emma Foster & Daniel Goldstein"
+        },
         "spotify": {
             "album": {
                 "name": "Brightest Lights",
@@ -239,7 +275,7 @@
             "external_ids": {
                 "isrc": "GBEWA1902991"
             },
-            "popularity": 62,
+            "popularity": 63,
             "is_playable": null,
             "linked_from": null,
             "artists": [
