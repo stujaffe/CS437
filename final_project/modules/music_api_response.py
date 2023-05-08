@@ -4,11 +4,63 @@ Functions to parse the response from the AUDD.IO music API
 """
 
 import requests
+import os
+import json
 from typing import Union, List
+from json.decoder import JSONDecodeError
 
 # Variables
 ROWS = 64
 COLS = 64
+
+def delete_json(filename: str="latest_response.json", directory="api_responses") -> None:
+    # Check if the file exists before trying to delete it
+    if directory[-1] != "/":
+        directory = f"{directory}/"
+    file_path = f"{directory}{filename}"
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            print(f"File '{file_path}' has been deleted.")
+        except OSError as e:
+            print(f"Error deleting file '{file_path}': {e}")
+
+
+def write_json(response: dict, filename: str="latest_response.json", directory="api_responses") -> None:
+    """
+    Saves JSON to disk
+    """
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
+    if directory[-1] != "/":
+        directory = f"{directory}/"
+    
+    with open(f"{directory}{filename}", "w") as f:
+        json.dump(response, f)
+        print("Saved API response to disk.")
+    
+    return None
+
+def read_json(filename: str="latest_response.json", directory="api_responses") -> dict:
+    """
+    Saves JSON to disk
+    """
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
+    if directory[-1] != "/":
+        directory = f"{directory}/"
+    
+    response = None
+    try:
+        with open(f"{directory}{filename}", "r") as f:
+            response = json.load(f)
+            print("Read API response from disk.")
+    except (JSONDecodeError, FileNotFoundError):
+        pass
+    
+    return response
 
 
 def convert_milliseconds(milliseconds: float) -> Union[None, str]:
@@ -137,9 +189,9 @@ def parse_api_response(response: dict) -> dict:
     text data from the response.
     """
     # Output dictionary with desired text data
-    output_dict = {"artist":None, "song":None,
-            "album":None, "release_date":None,
-            "duration":None, "album_art_urls":None}
+    output_dict = {"Artist":None, "Song":None,
+            "Album":None, "Release Date":None,
+            "Duration":None, "album_art_url":None, "Lyrics":None}
             
     # First check to see the result exists
     response_data = response.get("result")
@@ -159,6 +211,9 @@ def parse_api_response(response: dict) -> dict:
     # Get the album art URL
     album_art_url = get_best_album_art_url(response=response)
     
+    # Get the song preview URL (only Spotify works with the lyrics web app we have)
+    song_preview_url = response_data.get("spotify",{}).get("preview_url")
+    
     # Add to the parsed result. The text fields that we want to display
     # purposely have upper case names so they can display more micely on the lED Screen.
     output_dict["Artist"] = artist
@@ -167,6 +222,7 @@ def parse_api_response(response: dict) -> dict:
     output_dict["Release Date"] = release_date
     output_dict["Duration"] = duration_str
     output_dict["album_art_url"] = album_art_url
+    output_dict["preview_url"] = song_preview_url
     
     return output_dict
     

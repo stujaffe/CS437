@@ -4,8 +4,11 @@ Functions to record, encode, and save audio files.
 
 import pyaudio
 import io
+import os
+import sys
 from typing import List
 from pydub import AudioSegment
+from typing import Union
 
 
 def record_audio(
@@ -66,8 +69,56 @@ def encode_audio_mp3(
     raw_audio.export(mp3_buffer, format="mp3")
     mp3_buffer.seek(0)
     mp3_data = mp3_buffer.read()
+    
+    print(f"Size in bytes of MP3 encoding: {sys.getsizeof(mp3_data)}")
 
     return mp3_data
+
+def write_mp3_encoding(mp3_data: bytes, filename: str="latest_recording.mp3", directory="recordings") -> None:
+    """
+    Saves MP3 encoded audio to disk.
+    """
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
+    if directory[-1] != "/":
+        directory = f"{directory}/"
+    
+    with open(f"{directory}{filename}", "wb") as f:
+        f.write(mp3_data)
+        print("Saved recording to disk.")
+    
+    return None
+
+def read_mp3_encoding(filename: str="latest_recording.mp3", directory="recordings") -> Union[None,bytes]:
+    """
+    Reads MP3 encoded audio from disk.
+    """
+    mp3_data = None
+    if directory[-1] != "/":
+        directory = f"{directory}/"
+    
+    try:
+        with open(f"{directory}{filename}", "rb") as f:
+            mp3_data = f.read()
+            print("Read recording from disk.")
+    except FileNotFoundError:
+        pass
+    
+    return mp3_data
+
+def delete_mp3_encoding(filename: str="latest_recording.mp3", directory="recordings") -> None:
+    # Check if the file exists before trying to delete it
+    if directory[-1] != "/":
+        directory = f"{directory}/"
+    file_path = f"{directory}{filename}"
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            print(f"File '{file_path}' has been deleted.")
+        except OSError as e:
+            print(f"Error deleting file '{file_path}': {e}")
+
 
 
 if __name__ == "__main__":

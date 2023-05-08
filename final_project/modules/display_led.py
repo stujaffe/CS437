@@ -7,10 +7,8 @@ import time
 import json
 from PIL import Image, ImageDraw, ImageFont
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
-from typing import Tuple
+from typing import Tuple, List
 from io import BytesIO
-
-from music_api_response import parse_api_response, download_album_art
 
 # Variables
 ROWS = 64
@@ -30,8 +28,6 @@ FONT_SIZE = 15
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 DISPLAY_TEXT = "HELLO BODHI!"
 TEXT_COLOR = (57, 255, 20)
-X_CORD = 10
-Y_CORD = 20
 
 ALBUM_TEXT_KEYS = ["Artist","Song","Album","Release Date","Duration"]
 ALBUM_ART_KEY = "album_art_url"
@@ -144,57 +140,22 @@ def display_image_led(image_data: bytes, matrix: RGBMatrix, sleep_time: int=10) 
     
     return None
 
-if __name__ == "__main__":
-    
-    time.sleep(10)
-    
-    with open("sample_response.json","r") as f:
-        response = json.load(f)
-    
-    parsed_resp = parse_api_response(response=response)
-    
-    print(parsed_resp)
-    
-    # Gather all the text to display
+def gather_text(parsed_response: dict, target_keys: List[str]) -> str:
+    """
+    Function to create the scrolling text to display on the LED matrix, only
+    if the values exist as strings.
+    """
     text_to_display = ""
-    for text_key in ALBUM_TEXT_KEYS:
-        if type(parsed_resp.get(text_key)) == str:
+    for text_key in target_keys:
+        if type(parsed_response.get(text_key)) == str:
             if len(text_to_display) > 0:
-                text_to_display += " "
-            text_to_display += text_key + ":" + parsed_resp.get(text_key)
+                # Spacer in between text data
+                text_to_display += " | "
+            text_to_display += text_key + ":" + parsed_response.get(text_key)
     
-    print(text_to_display)
-            
-    text_image = create_text_image(
-        text=text_to_display,
-        font_path=FONT_PATH,
-        font_size=FONT_SIZE,
-        text_color=TEXT_COLOR,
-    )
-    matrix = create_led_matrx(
-        rows=ROWS,
-        cols=COLS,
-        chain_length=CHAIN_LENGTH,
-        parallel=PARALLEL,
-        hardware_mapping=HARDWARE_MAPPING,
-        gpio_slowdown=GPIO_SLOWDOWN,
-        multiplexing=LED_MULTIPLEXING,
-        pwm_bits=LED_PWM_BITS,
-        brightness=LED_BRIGHTNESS,
-        pwm_lsb_nanoseconds=PWM_LSB_NANOSECONDS,
-        led_rgb_sequence=LED_RGB_SEQUENCE
-    )
-    
-    
-    image_data = download_album_art(url=parsed_resp.get(ALBUM_ART_KEY))
-    
-    # Scroll text
-    scroll_text_mid(text_image=text_image, matrix=matrix)
-    
-    # Display image
-    display_image_led(image_data=image_data, matrix=matrix)
-    
-    
-    
+    return text_to_display
     
 
+if __name__ == "__main__":
+    pass
+    
